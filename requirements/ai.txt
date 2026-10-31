@@ -1,0 +1,15 @@
+# AI / RAG 依赖（体积大，按需安装；P2 阶段启用）
+# 安装： .\.venv\Scripts\python.exe -m pip install -r requirements\ai.txt
+langchain>=0.2
+langchain-core>=0.2
+langchain-openai>=0.1
+langgraph>=0.2
+openai>=1.40
+pymilvus>=2.4
+sentence-transformers>=3.0
+transformers>=4.42
+peft>=0.12
+torch>=2.3
+rank-bm25>=0.2
+jieba>=0.42
+tiktoken>=0.7

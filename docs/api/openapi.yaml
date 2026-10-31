@@ -1,0 +1,66 @@
+openapi: 3.0.3
+info:
+  title: 医疗问诊多智能体协作系统 API
+  version: 0.1.0
+servers:
+  - url: http://127.0.0.1:8000/api/v1
+paths:
+  /health/:
+    get:
+      summary: 健康检查
+      responses:
+        "200": {description: OK}
+  /accounts/me/:
+    get:
+      summary: 当前用户与患者档案
+      responses:
+        "200": {description: OK}
+  /consultations/:
+    get:
+      summary: 问诊会话列表
+      responses:
+        "200": {description: OK}
+    post:
+      summary: 创建问诊会话
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: {type: string}
+      responses:
+        "201": {description: Created}
+  /consultations/{id}/messages/:
+    post:
+      summary: 追加用户消息并触发一次多智能体协作
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: {type: string}
+      responses:
+        "201": {description: Created}
+  /agents/:
+    get:
+      summary: 已注册 Agent 列表
+      responses:
+        "200": {description: OK}
+  /monitoring/overview/:
+    get:
+      summary: 监控概览
+      responses:
+        "200": {description: OK}
+  /billing/usage/:
+    get:
+      summary: 用量与费用汇总
+      responses:
+        "200": {description: OK}

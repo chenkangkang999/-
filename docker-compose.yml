@@ -1,0 +1,3 @@
+# 根目录快捷入口；完整定义在 infra/compose/docker-compose.yml
+include:
+  - infra/compose/docker-compose.yml
