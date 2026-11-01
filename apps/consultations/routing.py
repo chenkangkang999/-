@@ -1,4 +1,5 @@
 """WebSocket 路由：按会话 id 分组，用于流式推送 Agent 状态。"""
+
 from __future__ import annotations
 
 from django.urls import path

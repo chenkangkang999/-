@@ -1,4 +1,5 @@
 """WSGI 入口（生产用 gunicorn）。"""
+
 from __future__ import annotations
 
 import os

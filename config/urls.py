@@ -1,4 +1,5 @@
 """URL 总入口：/api/v1/ 挂业务路由，/admin/ 管理后台。"""
+
 from __future__ import annotations
 
 from django.contrib import admin

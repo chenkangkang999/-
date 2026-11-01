@@ -1,10 +1,21 @@
 """监控埋点：时序指标 + 失败事件。"""
+
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 
 
 class Metric(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="metrics",
+    )
+    trace_id = models.CharField(max_length=64, blank=True, db_index=True)
+    event_id = models.CharField(max_length=128, null=True, blank=True, unique=True)
     name = models.CharField(max_length=128, db_index=True)
     value = models.FloatField()
     labels = models.JSONField(default=dict, blank=True)
@@ -27,6 +38,15 @@ class FailureEvent(models.Model):
         OTHER = "other", "其他"
 
     kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.OTHER)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="failure_events",
+    )
+    trace_id = models.CharField(max_length=64, blank=True, db_index=True)
+    run_id = models.CharField(max_length=64, blank=True, db_index=True)
     source = models.CharField(max_length=64, blank=True)
     message = models.TextField(blank=True)
     payload = models.JSONField(default=dict, blank=True)

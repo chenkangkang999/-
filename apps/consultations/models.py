@@ -1,5 +1,8 @@
 """问诊会话与消息：整条多智能体链路的「事实表」。"""
+
 from __future__ import annotations
+
+import uuid
 
 from django.conf import settings
 from django.db import models
@@ -23,9 +26,7 @@ class Consultation(models.Model):
     )
     title = models.CharField("会话标题", max_length=128, blank=True)
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.ACTIVE)
-    risk_level = models.CharField(
-        max_length=16, choices=RiskLevel.choices, default=RiskLevel.LOW
-    )
+    risk_level = models.CharField(max_length=16, choices=RiskLevel.choices, default=RiskLevel.LOW)
     chief_complaint = models.TextField("主诉", blank=True)
     summary = models.TextField("SOAP 小结", blank=True)
     trace_id = models.CharField("调用链 id", max_length=64, blank=True, db_index=True)
@@ -68,3 +69,55 @@ class Message(models.Model):
 
     def __str__(self) -> str:
         return f"{self.role}:{self.content[:20]}"
+
+
+class ConsultationRun(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "等待执行"
+        RUNNING = "running", "运行中"
+        SUCCEEDED = "succeeded", "已完成"
+        BLOCKED = "blocked", "已安全拦截"
+        FAILED = "failed", "执行失败"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    consultation = models.ForeignKey(Consultation, on_delete=models.CASCADE, related_name="runs")
+    message = models.OneToOneField(Message, on_delete=models.CASCADE, related_name="request_run")
+    reply = models.OneToOneField(
+        Message, null=True, blank=True, on_delete=models.SET_NULL, related_name="response_run"
+    )
+    client_request_id = models.UUIDField()
+    trace_id = models.CharField(max_length=64, unique=True, default=uuid.uuid4)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    error = models.JSONField(default=dict, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["consultation", "client_request_id"], name="unique_consultation_request"
+            ),
+            models.UniqueConstraint(
+                fields=["consultation"],
+                condition=models.Q(status__in=["pending", "running"]),
+                name="one_active_consultation_run",
+            ),
+        ]
+
+
+class Feedback(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    consultation = models.ForeignKey(
+        Consultation, on_delete=models.CASCADE, related_name="feedback"
+    )
+    run = models.ForeignKey(ConsultationRun, on_delete=models.CASCADE, related_name="feedback")
+    rating = models.SmallIntegerField(choices=[(1, "有帮助"), (-1, "需改进")])
+    comment = models.CharField(max_length=2000, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "run"], name="unique_run_feedback")]

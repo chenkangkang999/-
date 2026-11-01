@@ -5,12 +5,33 @@ from rest_framework import serializers
 from apps.consultations.models import Consultation, Message
 
 
+class MessageCreateSerializer(serializers.Serializer):
+    content = serializers.CharField(allow_blank=False, trim_whitespace=True, max_length=20000)
+
+
+class RunCreateSerializer(MessageCreateSerializer):
+    client_request_id = serializers.UUIDField()
+
+
+class FeedbackSerializer(serializers.Serializer):
+    run_id = serializers.UUIDField()
+    rating = serializers.ChoiceField(choices=[1, -1])
+    comment = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = (
-            "id", "role", "content", "agent_name", "citations",
-            "tokens_in", "tokens_out", "latency_ms", "created_at",
+            "id",
+            "role",
+            "content",
+            "agent_name",
+            "citations",
+            "tokens_in",
+            "tokens_out",
+            "latency_ms",
+            "created_at",
         )
         read_only_fields = fields
 
@@ -28,7 +49,15 @@ class ConsultationDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Consultation
         fields = (
-            "id", "title", "status", "risk_level", "chief_complaint",
-            "summary", "trace_id", "created_at", "updated_at", "messages",
+            "id",
+            "title",
+            "status",
+            "risk_level",
+            "chief_complaint",
+            "summary",
+            "trace_id",
+            "created_at",
+            "updated_at",
+            "messages",
         )
         read_only_fields = fields

@@ -16,7 +16,7 @@ RUN pip install --upgrade pip && pip install -r requirements/prod.txt
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput --settings=config.settings.prod || true
+RUN python manage.py collectstatic --noinput --settings=config.settings.test
 
 EXPOSE 8000
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]

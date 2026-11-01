@@ -1,40 +1,32 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
-
-const route = useRoute()
-
-const navItems = [
-  { name: 'home', label: '首页', to: '/' },
-  { name: 'consultation', label: '问诊', to: '/consultation' },
-  { name: 'agents', label: 'Agent 协作', to: '/agents' },
-  { name: 'monitoring', label: '监控', to: '/monitoring' },
-  { name: 'billing', label: '计费', to: '/billing' },
-]
+import { computed, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useSessionStore } from "@/stores/session";
+import { errorText } from "@/api/client";
+import { pageDefinition, workspaceBackgroundStyle } from "@/config/workspace";
+import AppIcon from "@/components/AppIcon.vue";
+import WorkspaceNavigation from "@/components/WorkspaceNavigation.vue";
+import PageScene from "@/components/PageScene.vue";
+const route = useRoute();
+const router = useRouter();
+const session = useSessionStore();
+const logoutError = ref("");
+const page = computed(() => pageDefinition(route.name));
+const backgroundStyle = workspaceBackgroundStyle();
+async function logout() {
+  try { await session.logout(); await router.replace("/login"); }
+  catch (error) { logoutError.value = errorText(error); }
+}
 </script>
-
 <template>
-  <div class="app-shell">
-    <header class="app-header">
-      <div class="brand">医疗问诊 · 多智能体</div>
-      <nav class="nav">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.name"
-          :to="item.to"
-          class="nav-link"
-          :class="{ active: route.path === item.to }"
-        >
-          {{ item.label }}
-        </RouterLink>
-      </nav>
-    </header>
-
-    <main class="app-main">
-      <RouterView />
-    </main>
-
-    <footer class="app-footer">
-      仅供技术演示，内容不构成医疗建议。
-    </footer>
+  <div class="app-shell" :style="backgroundStyle">
+    <div class="workspace-backdrop" aria-hidden="true"></div>
+    <header class="workspace-header"><div class="workspace-header-inner">
+      <RouterLink to="/" class="brand" aria-label="医协工作台首页"><span class="brand-symbol"><AppIcon name="plus" :size="25" /></span><span class="brand-wordmark">医协<small>医疗智能体协作平台</small></span></RouterLink>
+      <WorkspaceNavigation :active-page="page.name" />
+      <div class="workspace-user"><span class="avatar">{{ session.displayName.slice(0, 1).toUpperCase() }}</span><span class="user-name">{{ session.displayName }}<small>{{ session.user?.is_staff ? "项目管理员" : "个人账号" }}</small></span><button class="icon-button" title="退出登录" aria-label="退出登录" @click="logout"><AppIcon name="logout" :size="17" /></button></div>
+    </div></header>
+    <main class="app-main"><el-alert v-if="logoutError" :title="logoutError" type="error" show-icon /><PageScene v-if="page.name !== 'home'" :page="page" /><RouterView /></main>
+    <footer class="app-footer"><AppIcon name="shield" :size="14" /><span>仅供技术演示与健康信息参考，不替代医生诊断、处方或急诊服务。</span></footer>
   </div>
 </template>

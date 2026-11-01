@@ -1,17 +1,67 @@
-"""问诊会话 API：列表/详情/创建/发消息（编排在 services.coordinator 里）。"""
+"""Authenticated consultation and durable run APIs."""
+
 from __future__ import annotations
 
-from rest_framework import generics, status
+import uuid
+
+from django.db import transaction
+from rest_framework import generics
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.consultations.models import Consultation, Message
+from apps.agents.models import AgentRun
+from apps.consultations.models import Consultation, ConsultationRun, Feedback
 from apps.consultations.serializers import (
     ConsultationDetailSerializer,
     ConsultationListSerializer,
+    FeedbackSerializer,
+    MessageCreateSerializer,
     MessageSerializer,
+    RunCreateSerializer,
 )
+from apps.consultations.services.coordinator import (
+    ActiveRunError,
+    IdempotencyConflict,
+    create_run,
+    dispatch_run,
+    execute_run,
+)
+
+
+def owned_consultation(user, pk):
+    try:
+        return Consultation.objects.get(pk=pk, user=user)
+    except Consultation.DoesNotExist:
+        raise NotFound() from None
+
+
+def serialize_run(run):
+    steps = AgentRun.objects.filter(
+        consultation_id=run.consultation_id, trace_id=run.trace_id
+    ).order_by("id")
+    return {
+        "run_id": str(run.pk),
+        "trace_id": run.trace_id,
+        "status": run.status,
+        "error": run.error,
+        "message": MessageSerializer(run.message).data,
+        "reply": MessageSerializer(run.reply).data if run.reply_id else None,
+        "steps": [
+            {
+                "agent": s.agent_name,
+                "status": s.status,
+                "latency_ms": s.latency_ms,
+                "error_code": s.error or None,
+            }
+            for s in steps
+        ],
+        "created_at": run.created_at,
+        "finished_at": run.finished_at,
+        "metadata": run.metadata,
+        **run.metadata,
+    }
 
 
 class ConsultationListCreateView(generics.ListCreateAPIView):
@@ -34,27 +84,92 @@ class ConsultationDetailView(generics.RetrieveAPIView):
 
 
 class MessageCreateView(APIView):
-    """追加一条用户消息，并同步推进一次多智能体协作。"""
-
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, pk: int):
-        consultation = Consultation.objects.filter(pk=pk, user=request.user).first()
-        if consultation is None:
-            return Response({"detail": "not found"}, status=status.HTTP_404_NOT_FOUND)
-        payload = MessageSerializer(data=request.data)
+    def post(self, request, pk):
+        consultation = owned_consultation(request.user, pk)
+        payload = MessageCreateSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        message = Message.objects.create(
-            consultation=consultation, role=Message.Role.USER, **payload.validated_data
-        )
+        try:
+            run, _ = create_run(consultation, payload.validated_data["content"], uuid.uuid4())
+        except ActiveRunError as exc:
+            return Response({"detail": str(exc), "code": "RUN_ACTIVE"}, status=409)
+        execute_run(run.pk)
+        run.refresh_from_db()
+        data = serialize_run(run)
+        if run.status == "failed":
+            return Response(data, status=503)
+        return Response({**data, "message": MessageSerializer(run.message).data}, status=201)
 
-        from apps.consultations.services.coordinator import run_consultation_turn
 
-        reply = run_consultation_turn(consultation, message)
-        return Response(
-            {
-                "message": MessageSerializer(message).data,
-                "reply": MessageSerializer(reply).data,
+class RunListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        consultation = owned_consultation(request.user, pk)
+        runs = consultation.runs.select_related("message", "reply")[:50]
+        return Response({"results": [serialize_run(run) for run in runs]})
+
+    def post(self, request, pk):
+        consultation = owned_consultation(request.user, pk)
+        data = RunCreateSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        try:
+            run, created = create_run(
+                consultation,
+                data.validated_data["content"],
+                data.validated_data["client_request_id"],
+            )
+        except (ActiveRunError, IdempotencyConflict) as exc:
+            return Response({"detail": str(exc), "code": "RUN_CONFLICT"}, status=409)
+        if created:
+            try:
+                transaction.on_commit(lambda: dispatch_run(run))
+            except Exception:
+                from django.utils import timezone
+
+                ConsultationRun.objects.filter(pk=run.pk).update(
+                    status="failed",
+                    finished_at=timezone.now(),
+                    error={
+                        "code": "QUEUE_UNAVAILABLE",
+                        "message": "运行队列不可用，请联系管理员。",
+                    },
+                )
+        run.refresh_from_db()
+        return Response(serialize_run(run), status=202 if created else 200)
+
+
+class RunDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk, run_id):
+        consultation = owned_consultation(request.user, pk)
+        run = consultation.runs.select_related("message", "reply").filter(pk=run_id).first()
+        if run is None:
+            raise NotFound()
+        return Response(serialize_run(run))
+
+
+class FeedbackView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        consultation = owned_consultation(request.user, pk)
+        data = FeedbackSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        run = consultation.runs.filter(pk=data.validated_data["run_id"]).first()
+        if run is None:
+            raise NotFound()
+        if run.status not in {"succeeded", "blocked"}:
+            raise ValidationError({"detail": "只能对已经完成的回复提交反馈"})
+        feedback, _ = Feedback.objects.update_or_create(
+            user=request.user,
+            run=run,
+            defaults={
+                "consultation": consultation,
+                "rating": data.validated_data["rating"],
+                "comment": data.validated_data.get("comment", ""),
             },
-            status=status.HTTP_201_CREATED,
         )
+        return Response({"id": feedback.pk, "rating": feedback.rating, "run_id": str(run.pk)})

@@ -1,66 +1,703 @@
-openapi: 3.0.3
-info:
-  title: 医疗问诊多智能体协作系统 API
-  version: 0.1.0
-servers:
-  - url: http://127.0.0.1:8000/api/v1
-paths:
-  /health/:
-    get:
-      summary: 健康检查
-      responses:
-        "200": {description: OK}
-  /accounts/me/:
-    get:
-      summary: 当前用户与患者档案
-      responses:
-        "200": {description: OK}
-  /consultations/:
-    get:
-      summary: 问诊会话列表
-      responses:
-        "200": {description: OK}
-    post:
-      summary: 创建问诊会话
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                title: {type: string}
-      responses:
-        "201": {description: Created}
-  /consultations/{id}/messages/:
-    post:
-      summary: 追加用户消息并触发一次多智能体协作
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: {type: integer}
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [content]
-              properties:
-                content: {type: string}
-      responses:
-        "201": {description: Created}
-  /agents/:
-    get:
-      summary: 已注册 Agent 列表
-      responses:
-        "200": {description: OK}
-  /monitoring/overview/:
-    get:
-      summary: 监控概览
-      responses:
-        "200": {description: OK}
-  /billing/usage/:
-    get:
-      summary: 用量与费用汇总
-      responses:
-        "200": {description: OK}
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "医疗协作平台 API",
+    "version": "0.2.0",
+    "description": "Session + CSRF. All public medical replies pass the safety boundary. External algorithm providers remain replaceable."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
+  "paths": {
+    "/health/": {
+      "get": {
+        "security": [],
+        "summary": "Database health",
+        "responses": {
+          "200": {
+            "description": "Health state"
+          }
+        }
+      }
+    },
+    "/accounts/csrf/": {
+      "get": {
+        "security": [],
+        "summary": "Set CSRF cookie before login",
+        "responses": {
+          "200": {
+            "description": "csrf_token; session cookie is HttpOnly"
+          }
+        }
+      }
+    },
+    "/accounts/login/": {
+      "post": {
+        "security": [],
+        "summary": "Session login; CSRF required",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated user, including is_staff"
+          },
+          "400": {
+            "description": "Invalid credentials"
+          },
+          "403": {
+            "description": "Missing or invalid CSRF"
+          }
+        }
+      }
+    },
+    "/accounts/logout/": {
+      "post": {
+        "summary": "Logout; CSRF required",
+        "responses": {
+          "200": {
+            "description": "Logged out"
+          }
+        }
+      }
+    },
+    "/accounts/me/": {
+      "get": {
+        "summary": "Current authenticated user and profile",
+        "responses": {
+          "200": {
+            "description": "User"
+          },
+          "403": {
+            "description": "Authentication required"
+          }
+        }
+      }
+    },
+    "/consultations/": {
+      "get": {
+        "summary": "Owned consultations, paginated",
+        "responses": {
+          "200": {
+            "description": "count/next/previous/results"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create consultation; CSRF required",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 128
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created consultation"
+          }
+        }
+      }
+    },
+    "/consultations/{id}/": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Owned consultation, including approved messages",
+        "responses": {
+          "200": {
+            "description": "Consultation detail"
+          },
+          "404": {
+            "description": "Missing or not owned"
+          }
+        }
+      }
+    },
+    "/consultations/{id}/messages/": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "post": {
+        "summary": "Synchronous compatibility entry; all replies safety gated",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "content"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Active run"
+          },
+          "503": {
+            "description": "Failed; reply is null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/consultations/{id}/runs/": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Recent 50 durable runs for restoration",
+        "responses": {
+          "200": {
+            "description": "results: Run[]"
+          }
+        }
+      },
+      "post": {
+        "summary": "Submit idempotent asynchronous run",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent existing run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicting request or active run"
+          }
+        }
+      }
+    },
+    "/consultations/{id}/runs/{run_id}/": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "run_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Durable run state; approved reply only",
+        "responses": {
+          "200": {
+            "description": "Run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or not owned"
+          }
+        }
+      }
+    },
+    "/consultations/{id}/feedback/": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "post": {
+        "summary": "Upsert feedback on own completed run",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "run_id",
+                  "rating"
+                ],
+                "properties": {
+                  "run_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "rating": {
+                    "type": "integer",
+                    "enum": [
+                      1,
+                      -1
+                    ]
+                  },
+                  "comment": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Feedback saved"
+          }
+        }
+      }
+    },
+    "/agents/": {
+      "get": {
+        "summary": "Registered agents and integration readiness",
+        "responses": {
+          "200": {
+            "description": "agents, debate_enabled, llm_configured, integration_status"
+          }
+        }
+      }
+    },
+    "/agents/runs/": {
+      "get": {
+        "summary": "Own sanitized Agent telemetry",
+        "parameters": [
+          {
+            "name": "trace_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "results"
+          }
+        }
+      }
+    },
+    "/agents/{name}/test/": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "summary": "Staff-only single Agent test, with mandatory safety review",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "content"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Safe test output",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Staff permission required"
+          },
+          "503": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing/usage/": {
+      "get": {
+        "summary": "Own usage; staff may request scope=all",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "own",
+                "all"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "today/total/latest/by_day/by_query/by_run/by_user/measurement; costs are decimal strings"
+          }
+        }
+      }
+    },
+    "/billing/budget/": {
+      "get": {
+        "summary": "Daily spent, reserved and remaining budget plus configuration readiness",
+        "responses": {
+          "200": {
+            "description": "configured/price_configured/cost_limit/token_limit/currency/remaining_cost"
+          }
+        }
+      }
+    },
+    "/monitoring/overview/": {
+      "get": {
+        "summary": "Owned metrics, or staff overview; unavailable data explicitly marked",
+        "responses": {
+          "200": {
+            "description": "Agent/retrieval/knowledge/cost/feedback/failure metrics"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sessionid"
+      }
+    },
+    "schemas": {
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            }
+          },
+          "tokens_in": {
+            "type": "integer"
+          },
+          "tokens_out": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Citation": {
+        "type": "object",
+        "properties": {
+          "chunk_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          }
+        }
+      },
+      "RunInput": {
+        "type": "object",
+        "required": [
+          "content",
+          "client_request_id"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "client_request_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "Run": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "succeeded",
+              "blocked",
+              "failed"
+            ]
+          },
+          "message": {
+            "$ref": "#/components/schemas/Message"
+          },
+          "reply": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Message"
+              }
+            ],
+            "nullable": true
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "agent": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "latency_ms": {
+                  "type": "integer"
+                },
+                "error_code": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Only approved SOAP/explanation/guidance and audit summary."
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "required": [
+          "type",
+          "run_id",
+          "trace_id",
+          "timestamp",
+          "payload"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "run.started",
+              "agent.started",
+              "agent.completed",
+              "agent.failed",
+              "answer.chunk",
+              "run.completed",
+              "run.failed"
+            ]
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object",
+            "description": "Progress: latency_ms/round/error_code only. answer.chunk: approved text."
+          }
+        }
+      }
+    }
+  },
+  "x-websocket": {
+    "path": "/ws/consultations/{id}/",
+    "authentication": "Session cookie and consultation ownership",
+    "schema": {
+      "$ref": "#/components/schemas/Event"
+    },
+    "notes": "Progress contains no unreviewed medical body; reconnect using GET runs."
+  }
+}

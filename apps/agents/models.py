@@ -1,4 +1,5 @@
 """Agent 运行与步骤：监控面板、调用链追踪、计费都从这两张表取数。"""
+
 from __future__ import annotations
 
 from django.db import models
@@ -12,8 +13,11 @@ class AgentRun(models.Model):
         BLOCKED = "blocked", "被拦截"
 
     consultation = models.ForeignKey(
-        "consultations.Consultation", null=True, blank=True,
-        on_delete=models.CASCADE, related_name="agent_runs",
+        "consultations.Consultation",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="agent_runs",
     )
     agent_name = models.CharField(max_length=64, db_index=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.RUNNING)

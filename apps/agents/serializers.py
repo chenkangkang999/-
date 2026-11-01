@@ -9,7 +9,14 @@ class AgentRunSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentRun
         fields = (
-            "id", "agent_name", "status", "trace_id", "latency_ms",
-            "tokens_in", "tokens_out", "cost", "created_at",
+            "id",
+            "agent_name",
+            "status",
+            "trace_id",
+            "latency_ms",
+            "tokens_in",
+            "tokens_out",
+            "cost",
+            "created_at",
         )
         read_only_fields = fields

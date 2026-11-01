@@ -1,4 +1,5 @@
 """Celery 应用入口（broker/backend 走环境变量）。"""
+
 from __future__ import annotations
 
 import os

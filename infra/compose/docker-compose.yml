@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-medconsult}
       POSTGRES_USER: ${POSTGRES_USER:-medconsult}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medconsult}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -25,6 +25,7 @@ services:
       retries: 10
 
   etcd:
+    profiles: [rag]
     image: quay.io/coreos/etcd:v3.5.14
     environment:
       ETCD_AUTO_COMPACTION_MODE: revision
@@ -35,20 +36,24 @@ services:
       - etcddata:/etcd
 
   minio:
+    profiles: [rag]
     image: minio/minio:RELEASE.2024-05-10T01-41-38Z
     environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
     command: minio server /minio_data
     volumes:
       - miniodata:/minio_data
 
   milvus:
+    profiles: [rag]
     image: milvusdb/milvus:v2.4.6
     command: ["milvus", "run", "standalone"]
     environment:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-}
     ports:
       - "19530:19530"
     depends_on: [etcd, minio]
@@ -59,6 +64,10 @@ services:
       dockerfile: infra/docker/Dockerfile.backend
     env_file: [../../.env]
     environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      APP_RUNTIME: services
+      CONSULTATION_EXECUTOR: celery
+      CELERY_TASK_DEFAULT_QUEUE: default
       POSTGRES_HOST: postgres
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
@@ -79,9 +88,15 @@ services:
       dockerfile: infra/docker/Dockerfile.backend
     env_file: [../../.env]
     environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      APP_RUNTIME: services
+      CONSULTATION_EXECUTOR: celery
+      CELERY_TASK_DEFAULT_QUEUE: default
       POSTGRES_HOST: postgres
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      MILVUS_URI: http://milvus:19530
     command: celery -A config worker -l info -Q default,indexing,metrics
     depends_on: [backend]
 

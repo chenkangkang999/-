@@ -4,6 +4,7 @@
 - 密钥/连接串一律来自环境变量（.env 不入库）；
 - 业务开关集中在文件末尾，便于答辩演示时逐项开关。
 """
+
 from __future__ import annotations
 
 import os
@@ -56,7 +57,7 @@ LOCAL_APPS = [
     "apps.monitoring",
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = ["daphne"] + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -130,6 +131,10 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -173,6 +178,7 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "default")
 
 # ---------------------------------------------------------------------------
 # 业务域配置（集中在一处，方便测试覆盖）
@@ -190,6 +196,21 @@ LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "2"))
 ENABLE_DEBATE = env_bool("ENABLE_DEBATE", True)
 ENABLE_SAFETY_GATE = env_bool("ENABLE_SAFETY_GATE", True)
 DAILY_TOKEN_BUDGET_PER_USER = int(os.getenv("DAILY_TOKEN_BUDGET_PER_USER", "200000"))
+DAILY_COST_BUDGET_PER_USER = os.getenv("DAILY_COST_BUDGET_PER_USER", "")
+BILLING_CURRENCY = os.getenv("BILLING_CURRENCY", "CNY")
+LLM_MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "2048"))
+BILLING_INPUT_TOKEN_OVERHEAD = int(os.getenv("BILLING_INPUT_TOKEN_OVERHEAD", "128"))
+BILLING_ESTIMATOR_ENCODING = os.getenv("BILLING_ESTIMATOR_ENCODING", "cl100k_base")
+COORDINATOR_PROVIDER = os.getenv("COORDINATOR_PROVIDER", "agents.base.coordinator.Coordinator")
+HISTORY_PROVIDER = os.getenv(
+    "HISTORY_PROVIDER", "apps.consultations.services.ports.DatabaseHistory"
+)
+HISTORY_MESSAGE_LIMIT = int(os.getenv("HISTORY_MESSAGE_LIMIT", "30"))
+CONSULTATION_EXECUTOR = os.getenv("CONSULTATION_EXECUTOR", "celery")
+CONSULTATION_WORKERS = int(os.getenv("CONSULTATION_WORKERS", "2"))
+ANSWER_CHUNK_SIZE = int(os.getenv("ANSWER_CHUNK_SIZE", "96"))
+if min(HISTORY_MESSAGE_LIMIT, CONSULTATION_WORKERS, ANSWER_CHUNK_SIZE) <= 0:
+    raise ValueError("历史条数、工作线程数和回复分块大小必须为正数")
 
 # ---------------------------------------------------------------------------
 # 日志

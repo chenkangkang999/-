@@ -1,4 +1,5 @@
 """患者档案：把「对话历史」之外的稳定事实结构化存下来（长期记忆的基础）。"""
+
 from __future__ import annotations
 
 from django.conf import settings

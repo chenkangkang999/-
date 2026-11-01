@@ -1,0 +1,54 @@
+{
+  "version": "2026-10-31.1",
+  "urgent_levels": ["critical", "very_high", "extreme", "极高"],
+  "contraindication_regulation_ids": ["nhc_2022_13"],
+  "messages": {
+    "disclaimer": "本内容仅供健康信息参考，不能替代执业医师的面诊、诊断与处方。",
+    "blocked": "候选内容含需要执业医师核验的诊疗或用药建议，已停止发布。请携带症状、既往史、过敏史与当前用药信息咨询医师或药师。",
+    "emergency": "现有信息提示可能存在紧急危险信号，请立即拨打 120 或前往急诊，不要等待线上回复；请身边的人协助就医。",
+    "contraindication": "上游提示存在用药禁忌，当前不能给出个体化用药建议。请联系执业医师或药师核对过敏史、当前药物及特殊人群情况。"
+  },
+  "regulations": {
+    "nhc_2022_13": {
+      "id": "nhc_2022_13",
+      "title": "互联网诊疗监管细则（试行）",
+      "article": "第十三条",
+      "summary": "人工智能软件不得冒用、替代医师本人提供诊疗服务。",
+      "source_url": "https://www.nhc.gov.cn/yzygj/c100068/202203/2072f0e8988249e59d942e1b2a933916.shtml",
+      "verified_on": "2026-10-31"
+    },
+    "nhc_2022_21": {
+      "id": "nhc_2022_21",
+      "title": "互联网诊疗监管细则（试行）",
+      "article": "第二十一条",
+      "summary": "处方应由接诊医师本人开具，严禁使用人工智能等自动生成处方。",
+      "source_url": "https://www.nhc.gov.cn/yzygj/c100068/202203/2072f0e8988249e59d942e1b2a933916.shtml",
+      "verified_on": "2026-10-31"
+    }
+  },
+  "rules": [
+    {
+      "id": "automated_prescription",
+      "negation_pattern": "不能|不得|禁止|不允许|无法",
+      "pattern": "(?:我(?:来|将|可以|会|为你|为您|帮你|给你)|本系统(?:将|可以|会)|AI(?:将|可以|会))[^。！？\\n]{0,12}(?:开具|生成|开出)[^。！？\\n]{0,8}处方|以下(?:是|为)(?:你|您)的(?:电子)?处方",
+      "reason": "候选内容承诺由 AI 代为开具或自动生成个人处方。",
+      "severity": "high",
+      "regulation_ids": ["nhc_2022_21"]
+    },
+    {
+      "id": "personalized_dose",
+      "negation_pattern": "避免|不要|不能|不应|不得|禁止|不允许|无法",
+      "pattern": "(?:建议(?:你|您)|(?:你|您)(?:应|应该|需要|可以|必须|现在|每天|每次))[^。！？\\n]{0,12}(?:服用|口服|注射)[^。！？\\n]{0,32}\\d+(?:\\.\\d+)?\\s*(?:mg|毫克|片|粒|支|ml|毫升)",
+      "reason": "候选内容包含未经执业医师核验的个人具体剂量指令。",
+      "severity": "high",
+      "regulation_ids": ["nhc_2022_13"]
+    },
+    {
+      "id": "impersonate_physician",
+      "pattern": "我(?:是|作为)(?:你|您)的(?:主治|接诊|执业)?医(?:师|生)",
+      "reason": "候选内容冒充用户的接诊医师。",
+      "severity": "high",
+      "regulation_ids": ["nhc_2022_13"]
+    }
+  ]
+}
