@@ -7,6 +7,7 @@ import { pageDefinition, workspaceBackgroundStyle } from "@/config/workspace";
 import AppIcon from "@/components/AppIcon.vue";
 import WorkspaceNavigation from "@/components/WorkspaceNavigation.vue";
 import PageScene from "@/components/PageScene.vue";
+import PlatformBrand from "@/components/PlatformBrand.vue";
 const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
@@ -22,7 +23,7 @@ async function logout() {
   <div class="app-shell" :style="backgroundStyle">
     <div class="workspace-backdrop" aria-hidden="true"></div>
     <header class="workspace-header"><div class="workspace-header-inner">
-      <RouterLink to="/" class="brand" aria-label="医协工作台首页"><span class="brand-symbol"><AppIcon name="plus" :size="25" /></span><span class="brand-wordmark">医协<small>医疗智能体协作平台</small></span></RouterLink>
+      <PlatformBrand />
       <WorkspaceNavigation :active-page="page.name" />
       <div class="workspace-user"><span class="avatar">{{ session.displayName.slice(0, 1).toUpperCase() }}</span><span class="user-name">{{ session.displayName }}<small>{{ session.user?.is_staff ? "项目管理员" : "个人账号" }}</small></span><button class="icon-button" title="退出登录" aria-label="退出登录" @click="logout"><AppIcon name="logout" :size="17" /></button></div>
     </div></header>
