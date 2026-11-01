@@ -54,3 +54,20 @@ MIDDLEWARE = [
     m for m in MIDDLEWARE
     if m != "django.middleware.clickjacking.XFrameOptionsMiddleware"
 ]
+
+# 6) 禁用 CSRF 校验（创空间 iframe 部署）
+#    登录 POST 的 Origin 是 www.modelscope.cn（不在 CSRF_TRUSTED_ORIGINS），
+#    且 CSRF cookie 在第三方 iframe 上下文里发不出来 → Django 返回 403。
+#    演示环境无写安全风险，通过标记 _dont_enforce_csrf_checks 跳过 CSRF 校验
+#    （对 CsrfViewMiddleware 和 views 上的 csrf_protect 装饰器都生效）。
+#    该中间件须置于 MIDDLEWARE 最前，确保在 CsrfViewMiddleware 校验前打上标记。
+class CsrfDisableMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        request._dont_enforce_csrf_checks = True
+        return self.get_response(request)
+
+
+MIDDLEWARE = ["config.settings.demo.CsrfDisableMiddleware"] + MIDDLEWARE

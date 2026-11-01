@@ -21,4 +21,4 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.demo \
 
 EXPOSE 7860
 
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 7860 config.asgi:application"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py ensure_demo_user && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 7860 config.asgi:application"]
