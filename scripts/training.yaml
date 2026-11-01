@@ -30,32 +30,32 @@ lora:
 train:
   # LoRA adapter 输出目录
   output_dir: models/finetuned/bge-m3-lora
-  num_epochs: 2
+  num_epochs: 1
   per_device_batch_size: 8
   gradient_accumulation_steps: 2
   max_seq_length: 512
   # LoRA 学习率高于全量微调（1e-4 ~ 5e-4）
   learning_rate: 2.0e-4
   warmup_ratio: 0.1
-  # 学习率调度：cosine 余弦退火（配合 warmup 构成动态学习率曲线）
-  lr_scheduler_type: cosine
-  # 权重衰减：AdamW 的 L2 正则，防小数据 + 多 epoch 过拟合
-  weight_decay: 0.01
+  # 学习率调度：linear 线性衰减（消融结论：1 epoch 下 linear 优于 cosine，Recall@1 更高）
+  lr_scheduler_type: linear
+  # 权重衰减：0（消融结论：wd=0.01 未带来收益，线性基线 wd=0 更优）
+  weight_decay: 0.0
   bf16: false
   fp16: true
   # ---- 早停（early stopping）----
-  # 启用后每 eval_steps 步在验证集上算一次 eval_loss，连续 patience 次无改善则提前停止
-  early_stopping: true
+  # 已关闭：2ep 时早停在 0.96ep 过早触发、反而略逊于 1ep 基线；改为 1 epoch 直接训完
+  early_stopping: false
   early_stopping_patience: 3
   early_stopping_threshold: 1.0e-4
-  # 验证频率与保存频率保持一致（load_best_model_at_end 要求 save/eval strategy 一致）
+  # 验证频率：每 100 步算一次 eval_loss，仅用于训练过程监控（答辩可展示收敛曲线）
   eval_strategy: steps
   eval_steps: 100
-  save_steps: 100
+  save_steps: 1000
   # 不自动删除中间 checkpoint（save_total_limit 的删除会被沙箱安全策略拦截导致训练中断；训练结束后可手动清理 checkpoint-*）
   save_total_limit: null
-  # 训练结束时自动加载验证集上最优的 checkpoint（配合早停 = 最优模型自动落盘）
-  load_best_model_at_end: true
+  # 早停已关、1 epoch 直接训完，无需按 eval_loss 回退选最优 checkpoint
+  load_best_model_at_end: false
   metric_for_best_model: eval_loss
   greater_is_better: false
   logging_steps: 50
