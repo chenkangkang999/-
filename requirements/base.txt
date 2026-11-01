@@ -1,5 +1,5 @@
 # 运行时依赖（Web / 编排 / 持久化）
-Django>=5.2,<5.3
+Django>=6.1.2,<6.2
 djangorestframework>=3.15
 django-cors-headers>=4.4
 channels[daphne]>=4.1
