@@ -1,0 +1,33 @@
+{
+  "version": "2026-11-01",
+  "max_questions_per_turn": 3,
+  "required_fields": ["age", "duration", "allergies", "current_medications", "chronic_conditions"],
+  "fields": {
+    "age": {"label": "年龄", "question": "请问你多大年龄？"},
+    "duration": {"label": "症状持续时间", "question": "这些症状持续多久了，最近是在加重还是缓解？"},
+    "allergies": {"label": "药物过敏史", "question": "有没有药物过敏？没有或不清楚也请明确说明。"},
+    "current_medications": {"label": "正在使用的药物", "question": "目前在用哪些药物或保健品？没有用药也请说明。"},
+    "chronic_conditions": {"label": "基础疾病", "question": "有没有高血压、糖尿病等已知基础疾病？没有或不清楚也请说明。"},
+    "associated_symptoms": {"label": "伴随症状", "question": "还有哪些同时出现的症状？"}
+  },
+  "red_flag_patterns": ["胸痛", "呼吸困难", "意识不清", "抽搐", "大出血", "晕厥", "剧烈头痛"],
+  "negation_pattern": "(?:无|没有|否认|不伴|未出现|不存在|未发生)[^，。；;！？!?\\n]{0,10}$",
+  "contrast_pattern": "但是|然而|不过|但|却|而且|并且|同时|现在",
+  "negation_exception_pattern": "(?:不能|无法|并非|不是|不敢|不).{0,3}(?:否认|排除|没有|无)$",
+  "education_pattern": "^(?:请问|你好[，,]?)?(?:什么是|请介绍|科普|解释一下|如何预防)",
+  "personal_pattern": "(?:我|本人|患者|病人).{0,8}(?:出现|感觉|疼|痛|发烧|咳|出血|不适)",
+  "followup_intro": "为了先了解情况，还需要补充以下信息。本轮先补全病史，暂不进入用药建议。",
+  "stages": [
+    {"id": "precheck", "label": "急症初筛", "agents": []},
+    {"id": "intake", "label": "补全病史", "agents": ["triage"]},
+    {"id": "retrieval", "label": "查找证据", "agents": ["retrieval"]},
+    {"id": "assessment", "label": "风险与用药审核", "agents": ["risk", "medication"]},
+    {"id": "debate", "label": "分歧质证与仲裁", "agents": ["debate"]},
+    {"id": "explanation", "label": "通俗解释与指引", "agents": ["explainer"]},
+    {"id": "safety", "label": "安全审核后发布", "agents": ["safety"]}
+  ],
+  "references": [
+    "https://www.nhc.gov.cn/wjw/c100175/201002/b1bec53d90f243e0861529723f00221a.shtml",
+    "https://www.nhc.gov.cn/bgt/s9509/200906/6bf4da191c204c038bb048555ecca037.shtml"
+  ]
+}

@@ -19,6 +19,9 @@ data:
   # 样本上限（0 = 全量）。答辩实验建议先 20000 跑通，再按需调大
   max_train_samples: 20000
   max_val_samples: 1000
+  # 默认保持原 anchor/positive + in-batch negatives；飞轮审核三元组训练可设为 true。
+  # true 时所有训练/验证样本都必须有非空 negative，直接交给 MNRL 作为显式难负例。
+  use_explicit_negatives: false
 
 lora:
   r: 16
@@ -67,3 +70,17 @@ eval:
   top_ks: [1, 5, 10]
   # 微调前后对比表输出
   output_csv: models/finetuned/eval_comparison.csv
+  # 三组消融评测单独保留各版本，路径与展示标签均可替换。
+  # 保留原评测脚本的目录约定；同学提供实际 adapter 后在此核对路径。
+  comparison:
+    output_csv: models/finetuned/eval_comparison_3way.csv
+    models:
+      base:
+        label: 基座(微调前)
+        adapter_dir: null
+      baseline:
+        label: 线性基线
+        adapter_dir: models/finetuned/bge-m3-lora-baseline
+      cosine:
+        label: 余弦调优
+        adapter_dir: models/finetuned/bge-m3-lora/final

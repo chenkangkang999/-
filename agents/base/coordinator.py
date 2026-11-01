@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -37,10 +38,12 @@ class CoordinationResult:
 
 
 class Coordinator:
-    def __init__(self, pipeline: tuple[str, ...] = PIPELINE, max_workers: int = 4) -> None:
+    def __init__(self, pipeline: tuple[str, ...] = PIPELINE, max_workers: int | None = None) -> None:
         load_all()
         self.pipeline = pipeline
-        self.max_workers = max_workers
+        self.max_workers = int(os.getenv("COORDINATOR_WORKERS", "4")) if max_workers is None else max_workers
+        if self.max_workers <= 0:
+            raise ValueError("COORDINATOR_WORKERS must be positive")
 
     def run(self, text: str, context: AgentContext | None = None,
             enable_debate: bool = True) -> CoordinationResult:
@@ -51,6 +54,16 @@ class Coordinator:
         steps: list[dict] = []
         triage = get_agent("triage").run(context, message)
         steps.append(triage.to_dict())
+
+        if triage.metadata.get("red_flags") or triage.metadata.get("need_followup"):
+            risk = None
+            if triage.metadata.get("red_flags"):
+                risk = get_agent("risk").run(context, message)
+                steps.append(risk.to_dict())
+            context.facts["candidate_text"] = triage.content
+            safety = get_agent("safety").run(context, message)
+            steps.append(safety.to_dict())
+            return self._approved_result(context, steps, risk, safety, [])
 
         retrieval = get_agent("retrieval").run(context, message)
         steps.append(retrieval.to_dict())
@@ -73,17 +86,23 @@ class Coordinator:
         safety = get_agent("safety").run(context, message)
         steps.append(safety.to_dict())
 
-        reply = explainer.content or safety.content or "暂无法生成建议，请咨询线下医生。"
-        risk_level = str(risk.metadata.get("risk_level", "low"))
-        if risk_level == "high":
-            reply = "检测到红旗征，请立即就医或拨打 120。\n" + reply
-        citations = list(retrieval.citations)
+        return self._approved_result(context, steps, risk, safety, explainer.citations)
 
+    @staticmethod
+    def _approved_result(context, steps, risk, safety, citations):
+        audit = safety.metadata
+        valid = not safety.error and audit.get("decision") in {"pass", "replace", "block"} and isinstance(audit.get("approved_text"), str) and bool(audit["approved_text"].strip())
+        reply = audit["approved_text"].strip() if valid else "安全审核未完成，本轮不提供未经审核的建议，请咨询线下医师。"
+        risk_level = str(risk.metadata.get("risk_level", "unknown")) if risk else "unknown"
+        if risk and risk.metadata.get("risk_level_is_provisional") and risk_level == "low":
+            risk_level = "unknown"
+        if audit.get("escalate") or audit.get("severity") == "critical":
+            risk_level = "critical"
         return CoordinationResult(
             trace_id=context.trace_id,
             reply=reply,
-            citations=citations,
+            citations=list(citations) if valid and audit["decision"] == "pass" else [],
             steps=steps,
             risk_level=risk_level,
-            blocked=bool(safety.metadata.get("blocked")),
+            blocked=not valid or audit.get("decision") != "pass",
         )

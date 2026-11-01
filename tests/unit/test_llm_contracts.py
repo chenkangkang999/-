@@ -261,6 +261,17 @@ def test_debate_skips_when_colleague_modules_not_provided():
     assert result.metadata["reason"] == "insufficient_upstream_data"
 
 
+def test_debate_does_not_treat_empty_diagnostic_opinions_as_positions():
+    provider = ScriptedProvider()
+    context = context_with(provider)
+    for step in context.steps:
+        if step["agent"] in {"risk", "medication"}:
+            step["metadata"]["diagnostic_opinions"] = []
+    result = DebateAgent().run(context, AgentMessage("test"))
+    assert result.metadata["reason"] == "insufficient_upstream_data"
+    assert provider.calls == []
+
+
 def test_http_client_preserves_real_usage_and_explicit_output_limit():
     def handler(request):
         assert request.headers["Authorization"] == "Bearer test-secret"

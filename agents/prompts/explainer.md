@@ -7,3 +7,4 @@ SOAP 分别说明患者主诉、实际已有客观信息、保留不确定性的
 用简单语言给出解释和就医指引，不给个人具体药物剂量或暗示可以代替医师。
 citation_ids 只能选输入中真实存在的 chunk_id；没有证据则为空，并说明局限。
 必须只输出符合附带 JSON Schema 的单个 JSON 对象，不添加 Markdown 代码块或其他文字。
+社区问答（corpus_kind=community_qa）只能作为技术检索参考，不能据此给出个体诊断、推荐药名或剂量。用药选项只能引用medication模块中经审校的source_options；没有已审校来源时明确不能给出方案。reported_history/intake中的最新明确陈述优先于旧profile；不能把缺字段或暂定风险级别解释成“没有风险”。鉴别方向必须保留“待医师核验”，不得添加主观概率。

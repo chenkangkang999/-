@@ -10,6 +10,7 @@ from agents.llm.support import (
     emit_started,
     evidence,
     failure_result,
+    latest_steps,
     response_metadata,
     upstream_payload,
     validate_citation_ids,
@@ -47,9 +48,23 @@ class ExplainerAgent(BaseAgent):
             f"【白话解释】\n{result.explanation}",
             "【就医指引】\n" + "\n".join(f"• {item}" for item in result.care_guidance),
         ])
+        # These factual limitations are part of the candidate that Safety reviews,
+        # rather than extra medical fields published outside the approval boundary.
+        steps = latest_steps(context)
+        additions = []
+        triage = steps.get("triage", {})
+        if triage.get("metadata", {}).get("differentials"):
+            additions.append("【待医师核验的鉴别线索】\n" + triage["content"])
+        for name, heading in (("risk", "风险数据核验"), ("medication", "用药数据核验")):
+            step = steps.get(name, {})
+            if step.get("metadata", {}).get("data_status") and step.get("content"):
+                additions.append(f"【{heading}】\n{step['content']}")
+        if additions:
+            content += "\n\n" + "\n\n".join(additions)
+        mandatory_ids = {item["chunk_id"] for name in ("risk", "medication") for item in steps.get(name, {}).get("citations", []) if isinstance(item, dict) and item.get("chunk_id")}
         return AgentResult(
             agent=self.name, content=content,
-            citations=[item for item in citations if item["chunk_id"] in result.citation_ids],
+            citations=[item for item in citations if item["chunk_id"] in set(result.citation_ids) | mandatory_ids],
             metadata={**result.model_dump(), "llm": response_metadata(response),
                       "requires_safety_review": True},
         )

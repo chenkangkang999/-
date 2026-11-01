@@ -22,6 +22,9 @@ class AgentListView(APIView):
 
     def get(self, request):
         load_all()
+        from apps.learning.models import ModelVersion
+        from apps.rag.models import IndexRun
+        history = "langchain" if settings.HISTORY_PROVIDER.endswith("LangChainHistory") else "database" if settings.HISTORY_PROVIDER.endswith("DatabaseHistory") else "external"
         return Response(
             {
                 "agents": list_agents(),
@@ -31,16 +34,12 @@ class AgentListView(APIView):
                     and os.getenv("LLM_MODEL")
                     and os.getenv("LLM_BASE_URL")
                 ),
-                "history_provider": "database"
-                if settings.HISTORY_PROVIDER.endswith("DatabaseHistory")
-                else "external",
+                "history_provider": history,
                 "integration_status": {
-                    "base_agents": "external",
-                    "retrieval": "external",
-                    "lora": "not_connected",
-                    "langchain_history": "not_connected"
-                    if settings.HISTORY_PROVIDER.endswith("DatabaseHistory")
-                    else "connected",
+                    "base_agents": "implemented",
+                    "retrieval": settings.RAG_MODE if IndexRun.objects.filter(status="succeeded", stats__mode=settings.RAG_MODE).exists() else "not_connected",
+                    "lora": "registered" if ModelVersion.objects.filter(is_active=True).exists() else "not_connected",
+                    "langchain_history": "connected" if history == "langchain" else "not_connected",
                 },
             }
         )

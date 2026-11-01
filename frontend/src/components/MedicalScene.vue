@@ -51,6 +51,22 @@ defineProps<{ scene: WorkspacePage }>();
         <path d="M304 190h65M311 190v-24M327 190v-36M343 190v-19M359 190v-42" stroke="var(--scene-accent)" stroke-width="6" />
         <circle cx="74" cy="173" r="27" fill="var(--scene-soft)" /><path d="m61 174 9 9 18-20" stroke="var(--scene-accent)" stroke-width="2.5" />
       </template>
+      <template v-else-if="scene === 'training'">
+        <rect x="94" y="52" width="239" height="139" rx="12" fill="var(--scene-paper)" />
+        <path d="M113 164h200M125 78v85M145 144l36-19 28 8 37-42 42-13" stroke="var(--scene-accent)" stroke-width="3" />
+        <circle cx="181" cy="125" r="5" fill="var(--scene-soft)" /><circle cx="246" cy="91" r="5" fill="var(--scene-gold)" />
+        <path d="M192 192v16M161 211h94" />
+        <ellipse cx="78" cy="109" rx="32" ry="11" fill="var(--scene-gold)" /><path d="M46 109v53c0 15 64 15 64 0v-53M46 126c0 15 64 15 64 0M46 144c0 15 64 15 64 0" />
+        <rect x="306" y="126" width="72" height="73" rx="9" fill="var(--scene-soft)" /><path d="M323 143h38M323 155h38M323 167h26M323 180h32" />
+        <path d="M151 36h93M260 36h28" opacity=".45" />
+      </template>
+      <template v-else-if="scene === 'flywheel'">
+        <path d="M140 53c61-37 153 1 167 64M305 97l3 23 21-14M299 165c-56 60-161 26-174-47M109 132l15-19 22 12" stroke="var(--scene-accent)" stroke-width="3" />
+        <rect x="167" y="66" width="113" height="104" rx="15" fill="var(--scene-paper)" /><path d="M186 90h75M186 106h58M186 122h75M186 138h43" />
+        <circle cx="131" cy="73" r="31" fill="var(--scene-soft)" /><path d="M116 65h30v17h-18l-9 8v-8h-3z" />
+        <circle cx="308" cy="158" r="32" fill="var(--scene-gold)" /><path d="m294 158 10 10 20-23" stroke="var(--scene-accent)" stroke-width="3" />
+        <path d="M168 197h101M186 208h67" opacity=".5" />
+      </template>
       <template v-else-if="scene === 'billing'">
         <path d="M66 193h323M86 83v-23h166v133H86z" fill="var(--scene-soft)" />
         <path d="m91 59 21-20h54l15 20" fill="var(--scene-soft)" />

@@ -40,6 +40,8 @@ const router = createRouter({
       component: () => import("@/views/BillingView.vue"),
       meta: { title: "用量与账单", caption: "让模型调用与成本清晰可见" },
     },
+    { path: "/training", name: "training", component: () => import("@/views/TrainingView.vue"), meta: { title: "训练与数据" } },
+    { path: "/flywheel", name: "flywheel", component: () => import("@/views/FlywheelView.vue"), meta: { title: "数据飞轮" } },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],
 });

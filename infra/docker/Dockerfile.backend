@@ -13,6 +13,8 @@ RUN apt-get update \
 
 COPY requirements ./requirements
 RUN pip install --upgrade pip && pip install -r requirements/prod.txt
+ARG INSTALL_RAG=false
+RUN if [ "$INSTALL_RAG" = "true" ]; then pip install -r requirements/rag.txt; fi
 
 COPY . .
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """下载 BGE-M3 基座模型。
 
 镜像源按 scripts/training.yaml 的 model.mirror 切换：
@@ -22,7 +21,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def load_config(path: str) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

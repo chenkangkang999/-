@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "corpora": [
+    {
+      "path": "data/processed/cmedqa2/train_triplets.jsonl",
+      "format": "jsonl",
+      "text_field": "positive",
+      "title_field": "query",
+      "source": "cMedQA2 公开社区医疗问答训练语料（用户提供并核验的清洗文件）",
+      "kind": "community_qa",
+      "public_corpus": true,
+      "url": "https://github.com/zhangsheng93/cMedQA2"
+    }
+  ]
+}

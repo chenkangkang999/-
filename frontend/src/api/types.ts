@@ -44,6 +44,9 @@ export interface AgentStep {
   error_code?: string;
 }
 export interface Run {
+  intake?: { status: "awaiting_information" | "ready" | "emergency"; answers: Record<string, unknown>; missing_fields: string[]; questions: Array<{ field: string; label: string; question: string }>; summary: string; extraction_status?: string };
+  pipeline?: { stages: Array<{ id: string; label: string; status: string; agents?: string[]; reason?: string }>; current_stage?: string; reason?: string; updated_at?: string };
+  feedback?: { id: number; rating: number; comment?: string; training_consent: boolean } | null;
   run_id: string;
   trace_id: string;
   status: string;
@@ -55,7 +58,7 @@ export interface Run {
   plain_explanation?: string | null;
   guidance?: unknown;
   safety?: Record<string, unknown> | null;
-  metadata?: { safety?: Record<string, unknown> | null };
+  metadata?: { safety?: Record<string, unknown> | null; intake?: Run["intake"]; pipeline?: Run["pipeline"] };
   created_at?: string;
 }
 export interface AgentInfo {

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """BGE-M3 三组检索评测对比（基座 vs 线性基线 vs 余弦调优）。
 
 在 cMedQA2 验证集上，对三个模型各跑一遍 Recall@K / MRR / NDCG@K，
@@ -29,6 +28,37 @@ from scripts.eval_retrieval import (  # noqa: E402
 )
 
 
+def comparison_settings(eval_cfg: dict) -> tuple[dict[str, tuple[str, Path | None]], Path]:
+    """读取三组评测的标签和路径；缺失配置时明确报错，不猜测 adapter 位置。"""
+    comparison = eval_cfg.get("comparison")
+    if not isinstance(comparison, dict):
+        raise SystemExit("缺少 eval.comparison 配置，请按 scripts/training.yaml 补齐三组评测配置。")
+    output_csv = comparison.get("output_csv")
+    definitions = comparison.get("models")
+    if not isinstance(output_csv, str) or not output_csv.strip():
+        raise SystemExit("eval.comparison.output_csv 必须是非空路径。")
+    if not isinstance(definitions, dict):
+        raise SystemExit("eval.comparison.models 必须包含 base、baseline、cosine 三组配置。")
+    models: dict[str, tuple[str, Path | None]] = {}
+    for key in ("base", "baseline", "cosine"):
+        definition = definitions.get(key)
+        if not isinstance(definition, dict):
+            raise SystemExit(f"缺少 eval.comparison.models.{key} 配置。")
+        label = definition.get("label")
+        adapter_dir = definition.get("adapter_dir")
+        if not isinstance(label, str) or not label.strip():
+            raise SystemExit(f"eval.comparison.models.{key}.label 必须是非空文本。")
+        if key == "base":
+            if "adapter_dir" not in definition or adapter_dir is not None:
+                raise SystemExit("基座模型 eval.comparison.models.base.adapter_dir 必须显式设置为 null。")
+            models[key] = (label, None)
+        else:
+            if not isinstance(adapter_dir, str) or not adapter_dir.strip():
+                raise SystemExit(f"eval.comparison.models.{key}.adapter_dir 必须是非空路径。")
+            models[key] = (label, resolve(adapter_dir))
+    return models, resolve(output_csv)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="BGE-M3 三组检索评测对比")
     parser.add_argument("--config", default=str(PROJECT_ROOT / "scripts" / "training.yaml"))
@@ -42,21 +72,25 @@ def main() -> None:
     base_model_dir = resolve(model_cfg["local_dir"])
     val_file = resolve(data_cfg["val_file"])
 
-    # 三组待评测模型：{名称: adapter 目录（None = 基座不挂 adapter）}
-    models = {
-        "base": ("基座(微调前)", None),
-        "baseline": ("线性基线", resolve("models/finetuned/bge-m3-lora-baseline")),
-        "cosine": ("余弦调优", resolve("models/finetuned/bge-m3-lora") / "final"),
-    }
+    # 三组待评测模型：标签与 adapter 目录统一来自配置。
+    models, out_csv = comparison_settings(eval_cfg)
 
     max_val = args.max_val_samples if args.max_val_samples is not None else int(data_cfg.get("max_val_samples", 1000))
     num_negatives = int(eval_cfg.get("num_negatives", 19))
     top_ks = [int(k) for k in eval_cfg.get("top_ks", [1, 5, 10])]
     seed = int(cfg["train"].get("seed", 42))
-    out_csv = resolve("models/finetuned/eval_comparison_3way.csv")
-
     if not (base_model_dir / "config.json").exists():
         raise SystemExit(f"基座模型不存在：{base_model_dir}\n请先运行：python scripts/download_model.py")
+    if not val_file.is_file():
+        raise SystemExit(f"验证集不存在：{val_file}\n请检查 data.val_file 配置并提供真实验证数据。")
+    for label, adapter_dir in models.values():
+        if adapter_dir is not None and not adapter_dir.is_dir():
+            raise SystemExit(f"{label} adapter 不存在：{adapter_dir}\n请核对 eval.comparison.models 的路径。")
+
+    val_samples = load_triplets(val_file, max_val)
+    if not val_samples:
+        raise SystemExit(f"验证集没有有效 query/positive 样本：{val_file}")
+    pools = build_candidates(val_samples, num_negatives, seed)
 
     import torch
     from sentence_transformers import SentenceTransformer
@@ -64,8 +98,6 @@ def main() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[设备] {device}")
 
-    val_samples = load_triplets(val_file, max_val)
-    pools = build_candidates(val_samples, num_negatives, seed)
     print(f"[评测] 验证 {len(pools)} 条 query，每条候选 {1 + num_negatives} 个\n")
 
     # 逐个模型加载 + 评测
@@ -75,8 +107,6 @@ def main() -> None:
         if adapter_dir is None:
             model = SentenceTransformer(str(base_model_dir), device=device)
         else:
-            if not adapter_dir.exists():
-                raise SystemExit(f"adapter 不存在：{adapter_dir}")
             model = SentenceTransformer(str(base_model_dir), device=device)
             model.load_adapter(str(adapter_dir))
         print(f"[评测] 计算 {label} 指标...")

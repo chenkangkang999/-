@@ -10,6 +10,7 @@ import {
   type AgentStep,
 } from "@/api/types";
 import { useSessionStore } from "@/stores/session";
+import { agentWorkflowOrder } from "@/config/workspace";
 import AppIcon from "@/components/AppIcon.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AgentTimeline from "@/components/AgentTimeline.vue";
@@ -68,7 +69,10 @@ async function load() {
     http.get("/agents/runs/"),
   ]);
   if (results[0].status === "fulfilled") {
-    agents.value = results[0].value.data.agents || [];
+    agents.value = [...(results[0].value.data.agents || [])].sort((a, b) => {
+      const first = agentWorkflowOrder.indexOf(a.name); const second = agentWorkflowOrder.indexOf(b.name);
+      return (first < 0 ? Infinity : first) - (second < 0 ? Infinity : second);
+    });
     debateEnabled.value = results[0].value.data.debate_enabled;
     llmConfigured.value = results[0].value.data.llm_configured ?? null;
     if (!selectedName.value) selectedName.value = agents.value[0]?.name || "";

@@ -61,6 +61,7 @@ def upstream_payload(context: AgentContext, message: AgentMessage,
     return {
         "question": message.content,
         "patient": public_data(context.patient),
+        "intake": public_data(context.facts.get("intake", {})),
         "history": public_data(context.facts.get("history", [])),
         "upstream": [
             {"agent": name, "content": step.get("content", ""),
@@ -73,12 +74,15 @@ def upstream_payload(context: AgentContext, message: AgentMessage,
 
 
 def evidence(context: AgentContext) -> list[dict[str, Any]]:
-    retrieval = latest_steps(context).get("retrieval", {})
-    if retrieval.get("error"):
-        return []
-    citations = retrieval.get("citations") or []
-    return [public_data(item) for item in citations if isinstance(item, dict)
-            and isinstance(item.get("chunk_id"), str) and item["chunk_id"]]
+    unique = {}
+    for name in ("retrieval", "risk", "medication"):
+        step = latest_steps(context).get(name, {})
+        if step.get("error"):
+            continue
+        for item in step.get("citations") or []:
+            if isinstance(item, dict) and isinstance(item.get("chunk_id"), str) and item["chunk_id"]:
+                unique.setdefault(item["chunk_id"], public_data(item))
+    return list(unique.values())
 
 
 def validate_citation_ids(ids: list[str], citations: list[dict[str, Any]]) -> None:

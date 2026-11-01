@@ -19,11 +19,13 @@ import {
   type Run,
 } from "@/api/types";
 import AppIcon from "@/components/AppIcon.vue";
+import ClinicalInputs from "@/components/ClinicalInputs.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AgentTimeline from "@/components/AgentTimeline.vue";
 import EvidenceList from "@/components/EvidenceList.vue";
 import SoapPanel from "@/components/SoapPanel.vue";
 import SafetyAudit from "@/components/SafetyAudit.vue";
+import ProgressPipeline from "@/components/ProgressPipeline.vue";
 const route = useRoute();
 const router = useRouter();
 const consultations = ref<Consultation[]>([]);
@@ -42,6 +44,7 @@ const historyBusy = ref(false);
 const pendingRequest = ref<{
   consultationId: number;
   content: string;
+  signature: string;
   id: string;
 } | null>(null);
 const streamText = ref("");
@@ -52,6 +55,14 @@ const feedbackComment = ref("");
 const feedbackBusy = ref(false);
 const feedbackSaved = ref(false);
 const feedbackError = ref("");
+const trainingConsent = ref(false);
+const savedTrainingConsent = ref(false);
+const intakeAnswers = ref<Record<string, string>>({});
+const clinicalAnswers = ref<Record<string, unknown>>({});
+const intake = computed(() => run.value?.intake || run.value?.metadata?.intake);
+const clinicalPipeline = computed(() => run.value?.pipeline || run.value?.metadata?.pipeline);
+const intakeQuestions = computed(() => intake.value?.status === "awaiting_information" ? intake.value.questions || [] : []);
+const draftContent = computed(() => input.value.trim() || intakeQuestions.value.filter(item => intakeAnswers.value[item.field]?.trim()).map(item => `${item.label}：${intakeAnswers.value[item.field].trim()}`).join("；") || (Object.keys(clinicalAnswers.value).length ? "补充已知生命体征与检查信息" : ""));
 let socket: WebSocket | null = null;
 let poll: ReturnType<typeof setTimeout> | undefined;
 let reconnect: ReturnType<typeof setTimeout> | undefined;
@@ -208,7 +219,7 @@ function connect(id: number) {
         const eventStatus = data.status || data.type.split(".")[1];
         const step = {
           agent: data.agent,
-          status: eventStatus === "completed" ? "succeeded" : eventStatus,
+          status: data.payload?.execution_status === "skipped" ? "skipped" : eventStatus === "completed" ? "succeeded" : eventStatus,
           latency_ms: data.payload?.latency_ms,
           error_code: data.payload?.error_code,
         };
@@ -216,6 +227,9 @@ function connect(id: number) {
         if (index >= 0) steps[index] = { ...steps[index], ...step };
         else steps.push(step);
         run.value = { ...run.value, steps };
+      }
+      if (data.type === "pipeline.updated" && data.payload?.pipeline && run.value) {
+        run.value = { ...run.value, pipeline: data.payload.pipeline };
       }
       if (data.type === "answer.chunk") {
         streamText.value += data.payload?.text || "";
@@ -240,6 +254,7 @@ async function select(id: number | null) {
   feedbackRating.value = null;
   feedbackComment.value = "";
   feedbackError.value = "";
+  trainingConsent.value = false; savedTrainingConsent.value = false; intakeAnswers.value = {}; clinicalAnswers.value = {};
   if (!id) return;
   loading.value = true;
   try {
@@ -269,7 +284,9 @@ async function select(id: number | null) {
   }
 }
 async function send() {
-  const content = input.value.trim();
+  const content = draftContent.value;
+  const intakePayload = {...Object.fromEntries(Object.entries(intakeAnswers.value).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()])), ...clinicalAnswers.value};
+  const signature = JSON.stringify([content, intakePayload]);
   if (!content || busy.value || active.value) return;
   busy.value = true;
   error.value = "";
@@ -291,15 +308,16 @@ async function send() {
     if (
       !pendingRequest.value ||
       pendingRequest.value.consultationId !== id ||
-      pendingRequest.value.content !== content
+      pendingRequest.value.signature !== signature
     )
-      pendingRequest.value = { consultationId: id, content, id: uuid() };
+      pendingRequest.value = { consultationId: id, content, signature, id: uuid() };
     const { data } = await http.post<Run>(`/consultations/${id}/runs/`, {
       content,
       client_request_id: pendingRequest.value.id,
+      ...(Object.keys(intakePayload).length ? { intake: intakePayload } : {}),
     });
     pendingRequest.value = null;
-    input.value = "";
+    input.value = ""; intakeAnswers.value = {}; clinicalAnswers.value = {};
     if (id === currentId.value) {
       run.value = data;
       runs.value = [
@@ -335,14 +353,24 @@ async function saveFeedback() {
       run_id: run.value.run_id,
       rating: feedbackRating.value,
       comment: feedbackComment.value,
+      training_consent: trainingConsent.value,
     });
-    feedbackSaved.value = true;
+    feedbackSaved.value = true; savedTrainingConsent.value = trainingConsent.value;
   } catch (err) {
     feedbackError.value = errorText(err);
   } finally {
     feedbackBusy.value = false;
   }
 }
+async function revokeTrainingConsent() {
+  trainingConsent.value = false;
+  await saveFeedback();
+}
+watch([() => run.value?.run_id, () => run.value?.feedback], () => {
+  const saved = run.value?.feedback;
+  feedbackRating.value = saved?.rating ?? null; feedbackComment.value = saved?.comment || "";
+  trainingConsent.value = saved?.training_consent ?? false; savedTrainingConsent.value = trainingConsent.value; feedbackSaved.value = !!saved;
+});
 function newConsultation() {
   input.value = "";
   router.push("/consultation");
@@ -553,8 +581,10 @@ onBeforeUnmount(() => {
               >提交反馈</el-button
             ></template
           >
+          <label v-if="feedbackRating !== null && !feedbackSaved" class="learning-checkbox"><input v-model="trainingConsent" type="checkbox" aria-label="允许脱敏反馈用于检索模型改进" />允许本次脱敏反馈与证据用于改进检索模型（可撤回，不影响普通评价）</label>
+          <el-button v-if="feedbackSaved && savedTrainingConsent" size="small" :loading="feedbackBusy" @click="revokeTrainingConsent">撤回训练授权</el-button>
           <p v-if="feedbackSaved" class="success-text small">
-            反馈已保存，谢谢你的参与。
+            {{ savedTrainingConsent ? "反馈已保存，训练回流已授权；仍须脱敏与人工审校。" : "反馈已保存，未授权训练回流。" }}
           </p>
           <p v-if="feedbackError" class="text-danger small">
             {{ feedbackError }}
@@ -562,6 +592,8 @@ onBeforeUnmount(() => {
         </section>
       </div>
       <form class="message-composer" @submit.prevent="send">
+        <ClinicalInputs v-if="!active" v-model="clinicalAnswers" />
+        <section v-if="intakeQuestions.length && !active" class="intake-form"><h3>补充病史，再进入后续评估</h3><p>不确定时请如实填写“不清楚”。系统不会把未填写当作“无过敏”或“未用药”。</p><div class="intake-question-grid"><label v-for="question in intakeQuestions" :key="question.field" :for="`intake-${question.field}`">{{ question.question || question.label }}<el-input :id="`intake-${question.field}`" v-model="intakeAnswers[question.field]" :placeholder="question.label" maxlength="200" /></label></div></section>
         <el-input
           v-model="input"
           type="textarea"
@@ -580,7 +612,7 @@ onBeforeUnmount(() => {
             type="primary"
             native-type="submit"
             :loading="busy || active"
-            :disabled="!input.trim()"
+            :disabled="!draftContent"
             size="default"
             >{{ active ? "协作中" : "发送" }}<AppIcon name="send" :size="15"
           /></el-button>
@@ -627,11 +659,12 @@ onBeforeUnmount(() => {
             >Trace · {{ run.trace_id }}</span
           >
         </div>
+        <section v-if="clinicalPipeline?.stages?.length" class="clinical-stage-panel"><p>{{ clinicalPipeline.reason || intake?.summary || "信息充分后进入后续评估；急危重情况优先分流。" }}</p><ProgressPipeline :stages="clinicalPipeline.stages" label="本次问诊进度" /></section>
         <AgentTimeline
           v-if="run?.steps?.length"
           :steps="run.steps"
         /><EmptyState
-          v-else
+          v-else-if="!clinicalPipeline?.stages?.length"
           title="等待协作开始"
           description="真实调用状态将在这里依次呈现。"
           compact

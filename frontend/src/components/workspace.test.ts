@@ -21,6 +21,8 @@ async function context() {
     { path: "/", component: { template: "<div />" } },
     { path: "/consultation/:id?", component: { template: "<div />" } },
     { path: "/agents/:name?", component: { template: "<div />" } },
+    { path: "/training", component: { template: "<div />" } },
+    { path: "/flywheel", component: { template: "<div />" } },
     { path: "/monitoring", component: { template: "<div />" } },
     { path: "/billing", component: { template: "<div />" } },
   ] });
@@ -29,10 +31,10 @@ async function context() {
   return { plugins: [pinia, router, ElementPlus] };
 }
 describe("workspace navigation and scenes", () => {
-  it("provides the five primary destinations and identifies the current page", async () => {
+  it("provides the seven primary destinations and identifies the current page", async () => {
     const wrapper = mount(WorkspaceNavigation, { props: { activePage: "agents" }, global: await context() });
     const links = wrapper.findAll("a");
-    expect(links.map(link => link.attributes("href"))).toEqual(["/", "/consultation", "/agents", "/monitoring", "/billing"]);
+    expect(links.map(link => link.attributes("href"))).toEqual(["/", "/consultation", "/agents", "/training", "/flywheel", "/monitoring", "/billing"]);
     expect(wrapper.get('[aria-current="page"]').text()).toBe("智能体中心");
     expect(wrapper.findAll('[aria-current="page"]')).toHaveLength(1);
     wrapper.unmount();

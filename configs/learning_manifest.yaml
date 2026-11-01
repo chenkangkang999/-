@@ -1,0 +1,24 @@
+version: 1
+source: 需求与技术方案(1).md（2026-11，同学实验报告；未在本机复跑）
+selected_profile:
+  id: baseline
+  label: 线性基线
+  source: scripts/training.yaml（当前仓库配置）
+datasets:
+  - {key: cmedqa2-train, title: cMedQA2 训练三元组, source: cMedQA2, path: data/processed/cmedqa2/train_triplets.jsonl, format: jsonl, reported_rows: 90000}
+  - {key: cmedqa2-val, title: cMedQA2 验证三元组, source: cMedQA2, path: data/processed/cmedqa2/val_triplets.jsonl, format: jsonl, reported_rows: 10000}
+  - {key: ddi, title: 药物相互作用, source: DDInter 2.0, path: data/processed/drugs/ddi_clean.csv, format: csv, reported_rows: 160235}
+  - {key: icd10, title: ICD-10 疾病编码, source: chinese-medical-kg, path: data/processed/drugs/icd10.csv, format: csv, reported_rows: 35862}
+  - {key: nmpa-domestic, title: NMPA 国产药品, source: chinese-medical-kg, path: data/processed/drugs/nmpa_domestic.csv, format: csv, reported_rows: 164477}
+  - {key: nmpa-import, title: NMPA 进口药品, source: chinese-medical-kg, path: data/processed/drugs/nmpa_import.csv, format: csv, reported_rows: 3141}
+  - {key: framingham, title: Framingham 慢病风险, source: Framingham, path: data/processed/framingham_clean.csv, format: csv, reported_rows: 4240}
+reported_evaluation:
+  title: 同学报告的三组消融实验
+  selected_model: baseline
+  scope: {kind: candidate_pool, queries: 1000, candidates: 20, positive: 1, negative: 19, note: 每条query独立候选池；非Milvus全库检索评测}
+  metrics:
+    - {metric: Recall@1, base: 0.8470, baseline: 0.8680, cosine: 0.8660}
+    - {metric: Recall@5, base: 0.9810, baseline: 0.9830, cosine: 0.9820}
+    - {metric: Recall@10, base: 0.9930, baseline: 0.9950, cosine: 0.9950}
+    - {metric: MRR, base: 0.9035, baseline: 0.9190, cosine: 0.9184}
+    - {metric: NDCG@10, base: 0.9254, baseline: 0.9378, cosine: 0.9373}

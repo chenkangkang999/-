@@ -6,8 +6,10 @@ from django.contrib import admin
 from django.urls import include, path
 
 from apps.common.views import health
+from apps.consultations.clinical_views import ClinicalInputSchemaView
 
 urlpatterns = [
+    path("api/v1/clinical/schema/", ClinicalInputSchemaView.as_view()),
     path("admin/", admin.site.urls),
     path("api/health/", health, name="health"),
     path("api/v1/", include("apps.common.urls")),
@@ -17,4 +19,5 @@ urlpatterns = [
     path("api/v1/rag/", include("apps.rag.urls")),
     path("api/v1/billing/", include("apps.billing.urls")),
     path("api/v1/monitoring/", include("apps.monitoring.urls")),
+    path("api/v1/learning/", include("apps.learning.urls")),
 ]

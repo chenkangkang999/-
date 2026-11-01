@@ -16,6 +16,7 @@ class Consultation(models.Model):
         ESCALATED = "escalated", "已转急诊"
 
     class RiskLevel(models.TextChoices):
+        UNKNOWN = "unknown", "尚不能评估"
         LOW = "low", "低"
         MEDIUM = "medium", "中"
         HIGH = "high", "高"
@@ -26,7 +27,7 @@ class Consultation(models.Model):
     )
     title = models.CharField("会话标题", max_length=128, blank=True)
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.ACTIVE)
-    risk_level = models.CharField(max_length=16, choices=RiskLevel.choices, default=RiskLevel.LOW)
+    risk_level = models.CharField(max_length=16, choices=RiskLevel.choices, default=RiskLevel.UNKNOWN)
     chief_complaint = models.TextField("主诉", blank=True)
     summary = models.TextField("SOAP 小结", blank=True)
     trace_id = models.CharField("调用链 id", max_length=64, blank=True, db_index=True)
@@ -116,6 +117,7 @@ class Feedback(models.Model):
     run = models.ForeignKey(ConsultationRun, on_delete=models.CASCADE, related_name="feedback")
     rating = models.SmallIntegerField(choices=[(1, "有帮助"), (-1, "需改进")])
     comment = models.CharField(max_length=2000, blank=True)
+    training_consent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -86,7 +86,7 @@ describe("final safety audit", () => {
       },
     });
     expect(wrapper.text()).toContain("通过");
-    expect(wrapper.text()).toContain("风险严重程度：低");
+    expect(wrapper.text()).toContain("内容审核严重程度：低");
     expect(wrapper.text()).toContain("符合健康信息参考范围");
     expect(wrapper.text()).not.toContain("DO_NOT_DISPLAY");
   });
@@ -111,7 +111,7 @@ describe("final safety audit", () => {
       },
     });
     expect(wrapper.text()).toContain("拦截");
-    expect(wrapper.text()).toContain("风险严重程度：高");
+    expect(wrapper.text()).toContain("内容审核严重程度：高");
     expect(wrapper.text()).toContain("第二十一条");
     expect(wrapper.text()).toContain("候选内容承诺由 AI 自动生成个人处方。");
     expect(wrapper.findAll("a")).toHaveLength(1);
@@ -132,7 +132,7 @@ describe("final safety audit", () => {
       },
     });
     expect(wrapper.text()).toContain("替换");
-    expect(wrapper.text()).toContain("风险严重程度：极高");
+    expect(wrapper.text()).toContain("内容审核严重程度：极高");
     expect(wrapper.text()).not.toContain("通过");
   });
 });

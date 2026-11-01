@@ -1,0 +1,20 @@
+{
+  "id": "framingham-general-cvd-2008-lipids",
+  "kind": "framingham2008_lipids_cox",
+  "version": "D-Agostino-2008-primary-lipids",
+  "source": {
+    "title": "FHS General Cardiovascular Disease 10-year risk – original primary model",
+    "url": "https://www.framinghamheartstudy.org/fhs-for-researchers/fhs-risk-functions/cardiovascular-disease-10-year-risk/",
+    "doi": "10.1161/CIRCULATIONAHA.107.699579"
+  },
+  "population": {"minimum_age": 30, "maximum_age": 74, "prior_cvd": false},
+  "endpoint": "10年首次general CVD（包括冠心病、卒中/TIA、外周动脉疾病和心衰）；不是TenYearCHD数据集的同名终点",
+  "units": {"total_cholesterol": "mg/dL", "hdl_cholesterol": "mg/dL", "systolic_bp": "mmHg"},
+  "required": ["age", "sex", "total_cholesterol", "hdl_cholesterol", "cholesterol_unit", "systolic_bp", "bp_treated", "current_smoker", "diabetes", "prior_cvd"],
+  "technical_ranges": {"total_cholesterol": [1, 2000], "hdl_cholesterol": [1, 500], "systolic_bp": [1, 400]},
+  "models": {
+    "male": {"age": 3.06117, "total_cholesterol": 1.12370, "hdl_cholesterol": -0.93263, "systolic_untreated": 1.93303, "systolic_treated": 1.99881, "current_smoker": 0.65451, "diabetes": 0.57367, "baseline_survival": 0.88936, "mean_linear_predictor": 23.9802},
+    "female": {"age": 2.32888, "total_cholesterol": 1.20904, "hdl_cholesterol": -0.70833, "systolic_untreated": 2.76157, "systolic_treated": 2.82263, "current_smoker": 0.52873, "diabetes": 0.69154, "baseline_survival": 0.95012, "mean_linear_predictor": 26.1931}
+  },
+  "limitations": "复现FHS原始研究公式，不是已针对中国人群校准的临床决策模型；不生成诊断概率，不据此自动选择治疗或处方。官网另推荐现代ASCVD工具，二者终点与适用范围不可混用。技术输入界限仅防错误数据，不表示研究覆盖该范围。"
+}

@@ -1,0 +1,88 @@
+version: '2026-11-01'
+index_path: .local/clinical/evidence.sqlite3
+data_root: data/processed
+max_source_bytes: 1073741824
+status_labels:
+  not_connected: 未接入
+  connected: 已核验
+  stale_requires_sync: 资料或配置已变更，需重新同步
+  insufficient_data: 已知信息不足
+  calculated: 已按研究规则计算
+  outside_population: 不适用当前人群
+  unit_mismatch: 检验单位不符合研究公式
+  invalid_input: 输入需核对
+  invalid_model: 研究模型配置无效
+  unverified_model: 模型版本未核验
+  unsupported_model: 尚未支持此研究模型
+  no_hit: 当前表未找到记录
+  hits: 发现需要核验的记录
+  no_pairs: 未提供足够药物以核对药对
+  incomplete: 药名或来源信息不完整
+  unmapped_drug: 部分药名无法核对
+  hit: 发现需核验的相互作用
+  not_applicable: 当前没有需要核对的药物组合
+drug_sources:
+  - id: nmpa-domestic
+    path: drugs/nmpa_domestic.csv
+    fields: {name: name, aliases: aliases, english_name: english_name}
+    source: {title: NMPA 国产药品注册资料, url: 'https://www.nmpa.gov.cn/datasearch/home-index.html', authority: drug_registry}
+  - id: nmpa-import
+    path: drugs/nmpa_import.csv
+    fields: {name: name, aliases: aliases, english_name: english_name}
+    source: {title: NMPA 进口药品注册资料, url: 'https://www.nmpa.gov.cn/datasearch/home-index.html', authority: drug_registry}
+ddi:
+  path: drugs/ddi_clean.csv
+  fields: {drug_a: Drug_A, drug_b: Drug_B, severity: Level, description: Description}
+  source: {title: DDInter 2.0 相互作用数据, url: 'https://ddinter.scbdd.com/', authority: interaction_database}
+  severity_ranks: {unknown: 0, minor: 1, moderate: 2, major: 3, contraindicated: 4}
+  severity_aliases: {Unknown: unknown, Minor: minor, Moderate: moderate, Major: major, Contraindicated: contraindicated, 严重: major, 中等: moderate, 轻微: minor, 禁忌: contraindicated}
+  blocking_levels: [major, contraindicated]
+guidelines:
+  path: clinical/reviewed_drug_evidence.json
+  allowed_authorities: [guideline, drug_label]
+  required_review_fields: [reviewed_by, reviewed_at]
+tokens:
+  split_pattern: '[、,，;；/\n]+'
+  empty_values: [无, 没有, 无用药, 无过敏史, 未用药, 暂无, 无基础疾病]
+  unknown_values: [不清楚, 未知, 不详, unknown]
+  removable_prefixes: ['^(?:正在|目前|现在)?(?:服用|使用|用药为|吃的是|用的是)\s*']
+  dose_pattern: '(?i)(?:(?:\d+(?:\.\d+)?|[零〇一二两三四五六七八九十百半]+)\s*(?:mg|μg|mcg|g|ml|毫克|微克|克|毫升|片|粒)|(?:每日|每天|一日)\s*[一二三四\d]+次)'
+  positive_values: ['true', '1', 'yes', '是', '有', '已确认']
+  negative_values: ['false', '0', 'no', '否', '无', '没有']
+  sex_aliases: {male: [male, m, 男, 男性], female: [female, f, 女, 女性]}
+  pediatric_age: 18
+  max_medications: 30
+  allergy_negative_pattern: '^(?:无|没有|否认)(?:已知)?(?:任何)?(?:药物)?过敏(?:史)?$'
+  allergy_prefix_pattern: '^(?:对|有|已知)\s*'
+  allergy_suffix_pattern: '\s*(?:过敏史|过敏)$'
+  special_fields: [pregnancy, breastfeeding, renal_impairment, hepatic_impairment]
+emergency:
+  patterns: [胸痛, 呼吸困难, 意识不清, 抽搐, 大出血, 晕厥, 剧烈头痛]
+  negation: '(?:无|没有|否认|不伴|未出现|不存在|未发生)[^，。；;！？!?\n]{0,10}$'
+  contrast: '但是|然而|不过|但|却|现在'
+  action: 存在急症线索，请立即就近急诊或拨打120；不要等待在线问答或自行加药。
+  reference: {id: urgent-care, title: 医疗质量安全核心制度要点（急危重优先）, url: 'https://www.nhc.gov.cn/yzygj/c100068/201804/42ab2552298047679cd6ec733f233862.shtml', authority: official_policy}
+news2:
+  version: RCP-NEWS2-2017-scale1
+  minimum_age: 16
+  required: [respiratory_rate, oxygen_saturation, supplemental_oxygen, systolic_bp, heart_rate, consciousness, temperature]
+  source: {id: news2, title: Royal College of Physicians NEWS2 2017（Scale 1）, url: 'https://www.rcp.ac.uk/media/alxev00t/news2-chart-1_the-news-scoring-system_0_0.pdf', authority: clinical_score}
+  trigger_source: 'https://www.rcp.ac.uk/media/2acdezkd/news2-chart-2_news-thresholds-and-triggers_0.pdf'
+  disclaimer: NEWS2辅助急性病情观察，不能替代临床判断；不用于儿童、孕妇或未经临床确认的Scale 2人群。中文说明未经RCP审定，请以英文原版为准。
+  level_mapping_note: 应用的low/medium/high/critical为本平台四级展示映射；原版NEWS2的5–6分为Medium、7分及以上为High，不能将平台标签视为RCP原版术语。
+  bands:
+    respiratory_rate: [[8, 3], [11, 1], [20, 0], [24, 2], [null, 3]]
+    oxygen_saturation: [[91, 3], [93, 2], [95, 1], [100, 0]]
+    systolic_bp: [[90, 3], [100, 2], [110, 1], [219, 0], [null, 3]]
+    heart_rate: [[40, 3], [50, 1], [90, 0], [110, 1], [130, 2], [null, 3]]
+    temperature: [[35.0, 3], [36.0, 1], [38.0, 0], [39.0, 1], [null, 2]]
+  technical_ranges: {respiratory_rate: [1, 100], oxygen_saturation: [1, 100], systolic_bp: [1, 400], heart_rate: [1, 300], temperature: [20, 50]}
+  consciousness: {alert: 0, new_confusion: 3, voice: 3, pain: 3, unresponsive: 3, 清醒: 0, 新发意识混乱: 3, 意识不清: 3}
+  oxygen_score: 2
+  levels: [{minimum: 7, risk_level: critical}, {minimum: 5, risk_level: high}, {minimum: 1, risk_level: low}, {minimum: 0, risk_level: low}]
+  single_red_score: 3
+  single_red_level: medium
+  care_paths: {critical: 立即由急诊/急救团队评估, high: 尽快由有急性病诊治能力的医生评估, medium: 需要及时临床复核与密切观察, low: 当前测量未触及高分阈值，症状加重仍须及时就医}
+framingham:
+  artifact: configs/framingham2008-lipids.json
+  sha256: fa37eb9080d19bbc8ffd9b117c05dc590d4dfdd7a735f7c1f3a53cb91de8c099

@@ -1,0 +1,26 @@
+{
+  "version": "2026-11-01",
+  "note": "仅填写已知或实际测得的信息；空白保持未知。研究评分不是诊断，不据此自动调整治疗。",
+  "fields": [
+    {"id":"sex","label":"研究模型所需性别","group":"基本信息","type":"choice","options":[{"value":"male","label":"男"},{"value":"female","label":"女"}]},
+    {"id":"respiratory_rate","label":"呼吸频率（次/分）","group":"生命体征","type":"number","min":1,"max":100},
+    {"id":"oxygen_saturation","label":"血氧饱和度（%）","group":"生命体征","type":"number","min":1,"max":100},
+    {"id":"supplemental_oxygen","label":"测量时是否吸氧","group":"生命体征","type":"boolean"},
+    {"id":"systolic_bp","label":"收缩压（mmHg）","group":"生命体征","type":"number","min":1,"max":400},
+    {"id":"heart_rate","label":"心率（次/分）","group":"生命体征","type":"number","min":1,"max":300},
+    {"id":"temperature","label":"体温（℃）","group":"生命体征","type":"number","min":20,"max":50},
+    {"id":"consciousness","label":"意识状态","group":"生命体征","type":"choice","options":[{"value":"alert","label":"清醒"},{"value":"new_confusion","label":"新发意识混乱"},{"value":"voice","label":"仅对声音有反应"},{"value":"pain","label":"仅对疼痛有反应"},{"value":"unresponsive","label":"无反应"}]},
+    {"id":"total_cholesterol","label":"总胆固醇","group":"心血管研究评分","type":"number","min":1,"max":2000},
+    {"id":"hdl_cholesterol","label":"HDL胆固醇","group":"心血管研究评分","type":"number","min":1,"max":500},
+    {"id":"cholesterol_unit","label":"胆固醇检验单位","group":"心血管研究评分","type":"choice","options":[{"value":"mg/dL","label":"mg/dL"},{"value":"mmol/L","label":"mmol/L（本研究公式不直接计算）"}]},
+    {"id":"bp_treated","label":"是否正在接受降压治疗","group":"心血管研究评分","type":"boolean"},
+    {"id":"current_smoker","label":"目前是否吸烟","group":"心血管研究评分","type":"boolean"},
+    {"id":"diabetes","label":"是否已确诊糖尿病","group":"心血管研究评分","type":"boolean"},
+    {"id":"prior_cvd","label":"既往是否已患心血管疾病","group":"心血管研究评分","type":"boolean"},
+    {"id":"pregnancy","label":"是否妊娠","group":"特殊人群","type":"boolean"},
+    {"id":"breastfeeding","label":"是否哺乳","group":"特殊人群","type":"boolean"},
+    {"id":"renal_impairment","label":"是否已知肾功能异常","group":"特殊人群","type":"boolean"},
+    {"id":"hepatic_impairment","label":"是否已知肝功能异常","group":"特殊人群","type":"boolean"},
+    {"id":"hypercapnic_respiratory_failure","label":"医师是否确认高碳酸血症性呼吸衰竭","group":"特殊人群","type":"boolean"}
+  ]
+}

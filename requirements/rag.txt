@@ -1,0 +1,7 @@
+# Optional model/server dependencies. Install into the intended inference environment;
+# this does not require reinstalling or replacing its existing PyTorch.
+-r base.txt
+sentence-transformers>=3.4,<6
+peft>=0.14,<1
+pymilvus>=2.5,<3
+sentencepiece>=0.2

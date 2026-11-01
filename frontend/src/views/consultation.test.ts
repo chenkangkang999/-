@@ -42,6 +42,32 @@ async function mountView() {
   return wrapper;
 }
 describe("asynchronous consultation", () => {
+  it("sends training consent only after the user checks the optional authorization", async () => {
+    const run={run_id:"run-opt-in",trace_id:"trace-opt-in",status:"succeeded",reply:{id:2,role:"assistant",content:"审核后回复"},steps:[]};
+    vi.spyOn(http,"get").mockImplementation(async url=>({data:url==="/consultations/"?{results:[]}:url==="/consultations/1/runs/"?{results:[run]}:String(url).includes("/runs/")?run:{id:1,messages:[]}}));
+    const post=vi.spyOn(http,"post").mockResolvedValue({data:{}}); const wrapper=await mountView();
+    await wrapper.get('[aria-label="有帮助"]').trigger("click"); const consent=wrapper.get('[aria-label="允许脱敏反馈用于检索模型改进"]'); expect((consent.element as HTMLInputElement).checked).toBe(false);
+    await consent.setValue(true); await wrapper.findAll("button").find(item=>item.text()==="提交反馈")!.trigger("click"); await flushPromises();
+    expect(post).toHaveBeenCalledWith("/consultations/1/feedback/",expect.objectContaining({training_consent:true,rating:1})); expect(wrapper.text()).toContain("仍须脱敏与人工审校"); wrapper.unmount();
+  });
+  it("restores feedback consent after refresh and allows withdrawing it without removing the rating", async () => {
+    const run = {run_id:"run-consented",trace_id:"trace-consented",status:"succeeded",reply:{id:2,role:"assistant",content:"经过审核的回复"},feedback:{id:4,rating:1,comment:"反馈原因",training_consent:true},steps:[]};
+    vi.spyOn(http,"get").mockImplementation(async url=>({data:url==="/consultations/"?{results:[]}:url==="/consultations/1/runs/"?{results:[run]}:String(url).includes("/runs/")?run:{id:1,title:"合成测试",status:"active",messages:[]}}));
+    const post=vi.spyOn(http,"post").mockResolvedValue({data:{training_consent:false}});
+    const wrapper=await mountView();
+    const revoke=wrapper.findAll("button").find(item=>item.text()==="撤回训练授权"); expect(revoke).toBeDefined(); await revoke!.trigger("click"); await flushPromises();
+    expect(post).toHaveBeenCalledWith("/consultations/1/feedback/",{run_id:"run-consented",rating:1,comment:"反馈原因",training_consent:false});
+    expect(wrapper.text()).toContain("未授权训练回流"); expect(wrapper.text()).not.toContain("撤回训练授权"); wrapper.unmount();
+  });
+  it("submits explicitly completed missing history and shows only recorded clinical stages", async () => {
+    const run={run_id:"run-history",trace_id:"trace-history",status:"succeeded",reply:{id:2,role:"assistant",content:"请补充年龄"},steps:[],intake:{status:"awaiting_information",answers:{},missing_fields:["age"],questions:[{field:"age",label:"年龄",question:"你的年龄是多少？"}],summary:"病史尚未完整"},pipeline:{current_stage:"intake",reason:"病史尚未完整",stages:[{id:"precheck",label:"急症初筛",status:"completed"},{id:"intake",label:"多轮问诊",status:"waiting"},{id:"retrieval",label:"医学检索",status:"pending"}]}};
+    vi.spyOn(http,"get").mockImplementation(async url=>({data:url==="/consultations/"?{results:[]}:url==="/consultations/1/runs/"?{results:[run]}:String(url).includes("/runs/")?run:{id:1,title:"合成病例",messages:[]}}));
+    const post=vi.spyOn(http,"post").mockResolvedValue({data:{run_id:"new-run",trace_id:"new-trace",status:"pending",steps:[]}});
+    const wrapper=await mountView();
+    expect(wrapper.get('[aria-label="本次问诊进度"]').text()).toContain("未开始"); expect(wrapper.text()).toContain("补充病史，再进入后续评估");
+    await wrapper.get("#intake-age").setValue("32"); await wrapper.get(".message-composer").trigger("submit"); await flushPromises();
+    expect(post).toHaveBeenCalledWith("/consultations/1/runs/",expect.objectContaining({content:"年龄：32",intake:{age:"32"},client_request_id:expect.any(String)})); wrapper.unmount();
+  });
   it("restores a run, consumes real completion events and submits feedback to its run", async () => {
     let completed = false;
     const userMessage = { id: 10, role: "user", content: "咳嗽三天" };
@@ -115,6 +141,7 @@ describe("asynchronous consultation", () => {
       run_id: "run-1",
       rating: 1,
       comment: "",
+      training_consent: false,
     });
     expect(wrapper.text()).toContain("反馈已保存");
     wrapper.unmount();

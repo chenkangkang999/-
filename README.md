@@ -1,17 +1,20 @@
 # 医疗问诊多智能体协作系统
 
 Django 5.2 / DRF / Channels + Vue 3 / TypeScript / Pinia / Element Plus / ECharts。
-本分支补齐 LLM 工程与 Web 平台；同学的算法、基础Agent与数据工程通过接口接入。
+在既有仓库上补齐 LLM、Web、训练观测、反馈飞轮与基础 Agent/RAG 业务，保留可替换的双人协作接口。
 用于答辩与工程演示，输出不替代医师，不自动开具处方。
 
 ## 当前分工和完成边界
 
-- 本次：真实白话解释、安全双判、LangGraph辩论；登录/CSRF、问诊历史、异步任务、审核后回复、WebSocket、证据、反馈、Agent测试、计费与监控。
-- 同学：Coordinator和triage/retrieval/risk/medication、RAG/Milvus/LoRA、检索评测、LangChain历史。
-- 保留同学的既有骨架业务；未完成能力显示未接入/数据不足。未提供校准数据不生成诊断概率，没有真实实验不显示LoRA提升。
+- 本轮追加授权：基础问诊、检索、风险和用药业务；全量语料索引与混合检索代码；LangChain 历史；训练数据/日志页面及反馈到 BGE 训练准备闭环。
+- 同学继续提供真实药物/编码数据、GPU 训练产物和对应评测；训练参数仍保持所选线性基线。后续可以通过既有 `_execute(context, message)` / `AgentResult` / `Coordinator.run()` 替换模块。
+- 本机已核验 90,000 训练样本、10,000 验证样本、36 条余弦历史日志；实际 BM25 索引 61,987 文档/切片。BGE/Milvus、Cross-encoder 和完整容器部署尚未实机验收；缺失临床表不会被当作正常结果。
+- Top-N 是待医师核验的鉴别方向；无外部校准模型时概率为 null。特殊人群剂量不自动生成，药品推荐只接受已审校指南/说明书，不能以社区问答代替。
 - 测试provider只在tests/，本分支生产路径不自动使用Echo。旧base/LLM入口属于保留兼容代码；新增模块统一使用注入网关。
 
 接口、字段和事件见 [双人接口契约](docs/integration-contracts.md)，验收记录见 [本地验收](docs/acceptance.md)。
+
+本轮 v2 入口：[需求覆盖与边界](docs/requirements-v2.md)、[训练与飞轮操作](docs/learning-operations.md)、[RAG 与临床数据接入](docs/rag-clinical-operations.md)、[上台演示步骤](docs/demo-v2.md)、[本轮验收](docs/acceptance-v2.md)、[训练提交 CI 诊断](docs/ci-review-training-v2.md)。本轮已获用户审阅后的 main 提交授权，变更范围与未完成联调项见 [v2 发布备注](docs/releases/2026-11-01-v2.md)。
 
 2026-11-01 页面改版与复查见 [改版说明](docs/ui-refresh-2026-11-01.md)，远程两条检查的结论见 [CI 诊断](docs/ci-review-2026-11-01.md)，背景提示词与素材记录见 [素材来源](docs/assets/medical-background.md)。用户审阅后已授权提交，提交范围、独立 CI 修复与复验记录见 [交付备注](docs/releases/2026-11-01.md)。
 
@@ -71,6 +74,6 @@ python manage.py makemigrations --check --dry-run --settings=config.settings.tes
 根目录执行 docker compose --env-file .env up --build。
 先填写POSTGRES_PASSWORD；Compose明确切换到services、Redis和Celery，覆盖容器连接地址。
 RAG服务为可选profile：docker compose --env-file .env --profile rag up --build；
-启用前填写MinIO账号密码，实际索引由同学提供。
+启用前填写MinIO账号密码；数据与模型目录只读挂载，索引/训练交接目录由 backend 与 worker 共享 runtime 卷。向量模式需显式安装可选依赖并建索引，详见 RAG 接入文档。
 默认Compose用于本机集成；公网部署必须使用生产settings、HTTPS、明确主机及安全凭据。
 .dockerignore排除.env、数据库、患者数据、模型和虚拟环境，镜像不打包本机密钥。

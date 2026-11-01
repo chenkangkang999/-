@@ -1,10 +1,8 @@
-# 双人接口契约 v1
+# 双人接口契约 v2
 
 ## 所有权
 
-本次负责：explainer、safety、debate/LangGraph；LLM网关；Django/Vue、鉴权、发布控制、计费、监控、部署。
-同学负责：Coordinator、triage/retrieval/risk/medication；RAG/Milvus/LoRA/评测；LangChain历史、检索缓存与数据工程。
-不改同学四基础Agent的业务代码。界面数量来自注册表，debate为现有兼容入口。
+原分工为LLM/Web与同学算法模块分开；本轮用户追加授权补齐Coordinator、四基础Agent、RAG、LangChain历史与飞轮业务。同学继续提供真实数据和GPU训练/评测产物；这些模块仍按下面接口可替换，不强行重写同学训练超参。实际启用与实机验收边界见[需求覆盖](requirements-v2.md)。界面数量来自注册表，按业务流程排序。
 
 ## 保持兼容的入口
 
@@ -61,9 +59,18 @@ record_failure(code,*,source,user,trace_id,run_id)。
 
 POST /api/v1/consultations/{id}/feedback/：
 {run_id,rating:1|-1,comment?}，每用户每运行一条，可更新。
-数据工程从Feedback读取；未经授权不自动用于训练。
+新增training_consent:boolean，默认false，支持撤回。数据工程从Feedback读取；未经授权不进入候选池，评分不自动等于BGE相关性标签。
 
 ## 配置与失败
 
 价格、金额预算和模型配置必需真实提供。PRICE_NOT_CONFIGURED、BUDGET_NOT_CONFIGURED、BUDGET_EXCEEDED、TIMEOUT、RATE_LIMITED、INVALID_OUTPUT及未接入都不伪装成功。
 本地SQLite/进程内频道为明确开发模式，测试provider只存在tests/。
+
+## 本轮扩展契约
+
+- `/api/v1/clinical/schema/`：动态输入字段与取值范围。创建运行可传`intake`；保留原content与client_request_id；同幂等键不同病史返回409。运行返回intake/pipeline，持久化恢复。
+- `pipeline.updated`：payload.pipeline.stages含id/label/status/reason；状态pending/running/completed/waiting/skipped/failed。Agent事件payload.execution_status=skipped是明确跳过；事件不发送候选正文。
+- `/api/v1/rag/status/`：管理员查看实际模式、可用索引、处理行数/全量标记、模型消费状态和临床来源状态；`/rag/search/`保留兼容结果，增加status/mode/degraded/error_code/index_version/model_version/cache_status/latency_ms。
+- `/api/v1/learning/`：管理员资产、受限preview、显式sync、运行/事件、评测、模型版本与飞轮接口。全部路径、请求字段、权限和样例已补入[OpenAPI](api/openapi.yaml)。操作与文件约定见[训练文档](learning-operations.md)。
+- 训练事件通过training_run.json/training_events.jsonl/trainer_state.json同步；GPU主机用learning_callbacks.py或learning_run.py生成真实事件，不猜测进程状态，不把tqdm评测步数作为训练进度。
+- BGE三元组由人工确认相关/不相关来源并冻结；batch prepare生成独立配置，`data.use_explicit_negatives=true`才启用显式难负例。训练完成后仍需评测指纹绑定、人审登记、匹配版本全量建索引，不能直接从👍发布新模型。

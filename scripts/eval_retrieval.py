@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """BGE-M3 微调前后检索评测对比。
 
 对比「基座模型」与「LoRA 微调后」在 cMedQA2 验证集上的检索指标：
@@ -24,11 +23,11 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from rag.evaluation.metrics import recall_at_k, mrr, ndcg_at_k  # noqa: E402
+from rag.evaluation.metrics import mrr, ndcg_at_k, recall_at_k  # noqa: E402
 
 
 def load_config(path: str) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -39,7 +38,7 @@ def resolve(p: str) -> Path:
 
 def load_triplets(path: Path, limit: int) -> list[dict]:
     samples: list[dict] = []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -71,8 +70,8 @@ def evaluate(model, pools: list[tuple[str, list[str]]], top_ks: list[int]) -> di
     """返回 {metric_name: value}。"""
     import numpy as np
 
-    recall_sums = {k: 0.0 for k in top_ks}
-    ndcg_sums = {k: 0.0 for k in top_ks}
+    recall_sums = dict.fromkeys(top_ks, 0.0)
+    ndcg_sums = dict.fromkeys(top_ks, 0.0)
     mrr_sum = 0.0
     n = len(pools)
 
@@ -159,10 +158,10 @@ def main() -> None:
     print("-" * 60)
     rows = []
     for m in metric_names:
-        b, l = base_metrics[m], lora_metrics[m]
-        delta = l - b
-        rows.append({"metric": m, "base": b, "lora": l, "delta": delta})
-        print(f"{m:<12}{b:<16.4f}{l:<16.4f}{delta:<+10.4f}")
+        base_value, lora_value = base_metrics[m], lora_metrics[m]
+        delta = lora_value - base_value
+        rows.append({"metric": m, "base": base_value, "lora": lora_value, "delta": delta})
+        print(f"{m:<12}{base_value:<16.4f}{lora_value:<16.4f}{delta:<+10.4f}")
     print("=" * 60)
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)

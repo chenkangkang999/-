@@ -62,10 +62,14 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.backend
+      args:
+        INSTALL_RAG: ${INSTALL_RAG:-false}
     env_file: [../../.env]
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.dev
       APP_RUNTIME: services
+      TOKEN_BUCKET_BACKEND: redis
+      SESSION_ENGINE: django.contrib.sessions.backends.cached_db
       CONSULTATION_EXECUTOR: celery
       CELERY_TASK_DEFAULT_QUEUE: default
       POSTGRES_HOST: postgres
@@ -73,6 +77,10 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       MILVUS_URI: http://milvus:19530
+    volumes:
+      - ../../data:/app/data:ro
+      - ../../models:/app/models:ro
+      - runtime:/app/.local
     command: >
       sh -c "python manage.py migrate --noinput &&
              daphne -b 0.0.0.0 -p 8000 config.asgi:application"
@@ -86,10 +94,14 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.backend
+      args:
+        INSTALL_RAG: ${INSTALL_RAG:-false}
     env_file: [../../.env]
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.dev
       APP_RUNTIME: services
+      TOKEN_BUCKET_BACKEND: redis
+      SESSION_ENGINE: django.contrib.sessions.backends.cached_db
       CONSULTATION_EXECUTOR: celery
       CELERY_TASK_DEFAULT_QUEUE: default
       POSTGRES_HOST: postgres
@@ -97,6 +109,10 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       MILVUS_URI: http://milvus:19530
+    volumes:
+      - ../../data:/app/data:ro
+      - ../../models:/app/models:ro
+      - runtime:/app/.local
     command: celery -A config worker -l info -Q default,indexing,metrics
     depends_on: [backend]
 
@@ -113,3 +129,4 @@ volumes:
   redisdata:
   etcddata:
   miniodata:
+  runtime:

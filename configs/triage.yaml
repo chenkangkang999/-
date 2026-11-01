@@ -1,0 +1,18 @@
+version: '2026-11-01'
+top_n: 3
+coding_catalog: data/processed/clinical/terminology.csv
+coding_systems: [ICD-11, SNOMED-CT, ICD-10]
+probability_provider: ''
+templates:
+  - id: respiratory
+    label: 呼吸道症状问诊
+    keywords: [咳嗽, 咽痛, 鼻塞, 发热]
+    questions: [是否测量过体温，最高是多少？, 是否有气促、胸痛或症状明显加重？]
+  - id: digestive
+    label: 消化道症状问诊
+    keywords: [腹痛, 腹泻, 恶心, 呕吐, 胃痛]
+    questions: [疼痛具体位置在哪里，与进食是否有关？, 是否有呕血、黑便、便血或无法进水？]
+  - id: hypertension_followup
+    label: 血压随访问诊
+    keywords: [高血压, 血压]
+    questions: [最近几次血压测量值、时间和测量条件是什么？, 是否按医师原方案用药，有无漏服或不适？]

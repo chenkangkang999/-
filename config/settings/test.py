@@ -13,3 +13,7 @@ CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 # 测试环境不需要静态文件中间件（避免 staticfiles 目录告警）
 MIDDLEWARE = [m for m in MIDDLEWARE if "whitenoise" not in m]  # noqa: F405
+CLINICAL_INTAKE_ENABLED = False
+TOKEN_BUCKET_ENABLED = False
+TOKEN_BUCKET_BACKEND = "memory"
+APPROVED_RESPONSE_CACHE_ENABLED = False

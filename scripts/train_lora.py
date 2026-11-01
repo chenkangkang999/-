@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """BGE-M3 LoRA 微调脚本。
 
 - 基于 cMedQA2 三元组做对比学习（MultipleNegativesRankingLoss）
@@ -13,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 from pathlib import Path
 
@@ -22,7 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def load_config(path: str) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -34,7 +34,7 @@ def resolve(p: str) -> Path:
 def load_triplets(path: Path, limit: int) -> list[dict]:
     """读取 {query, positive, negative} 三元组，返回样本列表。"""
     samples: list[dict] = []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -47,13 +47,35 @@ def load_triplets(path: Path, limit: int) -> list[dict]:
     return samples
 
 
-def build_pairs_dataset(samples: list[dict]):
-    """构造 anchor/positive 数据集（MultipleNegativesRankingLoss 用 in-batch negatives）。"""
+def build_pairs_dataset(samples: list[dict], *, use_explicit_negatives: bool = False):
+    """构造 MNRL 数据集；飞轮训练可显式加入已审核的真实难负例。"""
+    if not isinstance(use_explicit_negatives, bool):
+        raise ValueError("use_explicit_negatives 必须是布尔值。")
+    rows = []
+    for index, sample in enumerate(samples):
+        row = {"anchor": sample["query"], "positive": sample["positive"]}
+        if use_explicit_negatives:
+            negative = sample.get("negative")
+            if not isinstance(negative, str) or not negative.strip():
+                raise ValueError(f"样本 {index + 1} 缺少非空 negative，不能启用显式难负例训练。")
+            row["negative"] = negative
+        rows.append(row)
+
     from datasets import Dataset
 
-    return Dataset.from_list(
-        [{"anchor": s["query"], "positive": s["positive"]} for s in samples]
-    )
+    return Dataset.from_list(rows)
+
+
+def observation_callbacks(cfg: dict) -> list:
+    """Opt in to metrics-only observation without importing GPU tools by default."""
+    observation = cfg.get("observation", {})
+    if not isinstance(observation, dict) or not isinstance(observation.get("enabled", False), bool):
+        raise ValueError("observation.enabled 必须是布尔值。")
+    if not observation.get("enabled", False):
+        return []
+    module_name = f"{__package__}.learning_callbacks" if __package__ else "learning_callbacks"
+    callback_module = importlib.import_module(module_name)
+    return [callback_module.TrainingObservationCallback()]
 
 
 def main() -> None:
@@ -67,6 +89,9 @@ def main() -> None:
     cfg = load_config(args.config)
     model_cfg, data_cfg = cfg["model"], cfg["data"]
     lora_cfg, train_cfg = cfg["lora"], cfg["train"]
+    use_explicit_negatives = data_cfg.get("use_explicit_negatives", False)
+    if not isinstance(use_explicit_negatives, bool):
+        raise SystemExit("data.use_explicit_negatives 必须是 true 或 false。")
 
     base_model_dir = resolve(model_cfg["local_dir"])
     output_dir = resolve(train_cfg["output_dir"])
@@ -123,9 +148,14 @@ def main() -> None:
     train_samples = load_triplets(train_file, max_train)
     val_samples = load_triplets(val_file, max_val)
     print(f"[数据] 训练 {len(train_samples)} 条, 验证 {len(val_samples)} 条")
-    train_dataset = build_pairs_dataset(train_samples)
+    train_dataset = build_pairs_dataset(
+        train_samples, use_explicit_negatives=use_explicit_negatives
+    )
     # 验证集用于训练中的早停（监控 eval_loss）
-    eval_dataset = build_pairs_dataset(val_samples) if val_samples else None
+    eval_dataset = (
+        build_pairs_dataset(val_samples, use_explicit_negatives=use_explicit_negatives)
+        if val_samples else None
+    )
 
     # 4. 对比学习 loss
     loss = MultipleNegativesRankingLoss(model)
@@ -157,7 +187,7 @@ def main() -> None:
     )
 
     # 6. 早停回调（配置 early_stopping: true 时启用，基于验证集 eval_loss）
-    callbacks = []
+    callbacks = observation_callbacks(cfg)
     if train_cfg.get("early_stopping"):
         from transformers import EarlyStoppingCallback
 

@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "医疗协作平台 API",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Session + CSRF. All public medical replies pass the safety boundary. External algorithm providers remain replaceable."
   },
   "servers": [
@@ -185,6 +185,9 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 20000
+                  },
+                  "intake": {
+                    "$ref": "#/components/schemas/IntakeSubmission"
                   }
                 }
               }
@@ -353,6 +356,11 @@
                   "comment": {
                     "type": "string",
                     "maxLength": 2000
+                  },
+                  "training_consent": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Explicit opt-in for deidentified retrieval training; false withdraws future export/prepare."
                   }
                 }
               }
@@ -497,6 +505,1000 @@
           }
         }
       }
+    },
+    "/learning/overview/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Current profile and real dataset/training counts",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        }
+      }
+    },
+    "/learning/datasets/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Reported vs verified data assets",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DatasetAsset"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        }
+      }
+    },
+    "/learning/datasets/{key}/preview/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Bounded redacted JSONL/CSV sample from a registered asset",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "asset_key": {
+                      "type": "string"
+                    },
+                    "fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/learning/sync/": {
+      "post": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Synchronize configured local artifacts; no client file paths",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/learning/runs/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Historical and observed training runs",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TrainingRun"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        }
+      }
+    },
+    "/learning/runs/{run_id}/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Durable training status/configuration/provenance",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/learning/runs/{run_id}/events/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Incremental real metric/operation events",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ]
+      }
+    },
+    "/learning/evaluations/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Source-marked experimental reports; candidate-pool scope",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        }
+      }
+    },
+    "/learning/models/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Model registrations and activation audit trail; retrieval integration remains separate",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        }
+      }
+    },
+    "/learning/models/register/": {
+      "post": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Validate real adapter files and register a model candidate",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "run_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "adapter_path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "run_id",
+                  "label",
+                  "adapter_path"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/learning/models/{version_id}/activate/": {
+      "post": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Register active version after fingerprint-matched evaluation and human confirmation",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "parameters": [
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "review_note": {
+                    "type": "string"
+                  },
+                  "evidence_confirmed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "review_note",
+                  "evidence_confirmed"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/learning/models/rollback/": {
+      "post": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Rollback a recorded activation; can restore no active override",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "activation_id": {
+                    "type": "integer"
+                  },
+                  "review_note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "activation_id",
+                  "review_note"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/learning/flywheel/overview/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Consent, review, batch and preparation counts",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        }
+      }
+    },
+    "/learning/flywheel/collect/": {
+      "post": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Collect consented successful replies into review candidates; rating is not a relevance label",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/learning/flywheel/candidates/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Redacted staff review candidates",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        }
+      }
+    },
+    "/learning/flywheel/candidates/{candidate_id}/review/": {
+      "post": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Human review of relevance and redaction",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "parameters": [
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "reject"
+                    ]
+                  },
+                  "review_note": {
+                    "type": "string"
+                  },
+                  "positive": {
+                    "type": "string"
+                  },
+                  "negative": {
+                    "type": "string"
+                  },
+                  "positive_source": {
+                    "type": "string"
+                  },
+                  "negative_source": {
+                    "type": "string"
+                  },
+                  "redaction_confirmed": {
+                    "type": "boolean"
+                  },
+                  "evidence_confirmed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "decision",
+                  "review_note"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/learning/flywheel/batches/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Frozen traceable training/validation batches",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TrainingBatch"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Freeze consented reviewed samples with query-level separation",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingBatch"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "candidate_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "candidate_ids"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/learning/flywheel/batches/{batch_id}/download/": {
+      "get": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Export triplets or FlagEmbedding data; rechecks consent and review version",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "triplets",
+                "flagembedding"
+              ]
+            }
+          },
+          {
+            "name": "split",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "train",
+                "validation"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/learning/flywheel/batches/{batch_id}/prepare/": {
+      "post": {
+        "tags": [
+          "Learning (staff)"
+        ],
+        "summary": "Prepare real snapshot/configuration with explicit negatives; returns a GPU-host command, not a launched job",
+        "description": "Staff Session required; all writes require CSRF. No GPU training is automatically launched.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "batch_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "run_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ready"
+                      ]
+                    },
+                    "command": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "config_path": {
+                      "type": "string"
+                    },
+                    "training_enabled": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing artifacts"
+          },
+          "403": {
+            "description": "Session/staff/CSRF required"
+          },
+          "410": {
+            "description": "Consent or frozen sample version revoked"
+          }
+        },
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clinical/schema/": {
+      "get": {
+        "summary": "Authenticated clinical input definitions with units; no patient values",
+        "responses": {
+          "200": {
+            "description": "version,note,fields"
+          }
+        }
+      }
+    },
+    "/rag/status/": {
+      "get": {
+        "summary": "Staff-only actual retrieval mode, index progress, model and clinical-data state",
+        "responses": {
+          "200": {
+            "description": "mode,status,degraded,index,base_model_present,active_adapter_consumed,clinical_data"
+          },
+          "403": {
+            "description": "Staff session required"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -573,6 +1575,9 @@
           "client_request_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "intake": {
+            "$ref": "#/components/schemas/IntakeSubmission"
           }
         }
       },
@@ -641,7 +1646,63 @@
           },
           "metadata": {
             "type": "object",
-            "description": "Only approved SOAP/explanation/guidance and audit summary."
+            "description": "Approved assistant details, validated user-reported intake, and operational pipeline. Never raw candidate assistant text."
+          },
+          "intake": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "awaiting_information",
+                  "ready",
+                  "emergency"
+                ]
+              },
+              "intent": {
+                "type": "string"
+              },
+              "answers": {
+                "type": "object"
+              },
+              "missing_fields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "questions": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "pipeline": {
+            "$ref": "#/components/schemas/ClinicalPipeline"
+          },
+          "feedback": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "rating": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  -1
+                ]
+              },
+              "comment": {
+                "type": "string"
+              },
+              "training_consent": {
+                "type": "boolean"
+              }
+            },
+            "nullable": true
           }
         }
       },
@@ -664,7 +1725,8 @@
               "agent.failed",
               "answer.chunk",
               "run.completed",
-              "run.failed"
+              "run.failed",
+              "pipeline.updated"
             ]
           },
           "run_id": {
@@ -686,7 +1748,324 @@
           },
           "payload": {
             "type": "object",
-            "description": "Progress: latency_ms/round/error_code only. answer.chunk: approved text."
+            "description": "Agent progress is operational only; execution_status=skipped means the Agent had insufficient upstream input and did not perform a debate. pipeline.updated carries ClinicalPipeline. answer.chunk carries approved text only."
+          }
+        }
+      },
+      "IntakeSubmission": {
+        "type": "object",
+        "properties": {
+          "age": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "duration": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "allergies": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "current_medications": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "chronic_conditions": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "associated_symptoms": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "sex": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "description": "研究模型所需性别; absent means unknown, not normal/false."
+          },
+          "respiratory_rate": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "呼吸频率（次/分）; absent means unknown, not normal/false."
+          },
+          "oxygen_saturation": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "血氧饱和度（%）; absent means unknown, not normal/false."
+          },
+          "supplemental_oxygen": {
+            "type": "boolean",
+            "description": "测量时是否吸氧; absent means unknown, not normal/false."
+          },
+          "systolic_bp": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 400,
+            "description": "收缩压（mmHg）; absent means unknown, not normal/false."
+          },
+          "heart_rate": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 300,
+            "description": "心率（次/分）; absent means unknown, not normal/false."
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 50,
+            "description": "体温（℃）; absent means unknown, not normal/false."
+          },
+          "consciousness": {
+            "type": "string",
+            "enum": [
+              "alert",
+              "new_confusion",
+              "voice",
+              "pain",
+              "unresponsive"
+            ],
+            "description": "意识状态; absent means unknown, not normal/false."
+          },
+          "total_cholesterol": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 2000,
+            "description": "总胆固醇; absent means unknown, not normal/false."
+          },
+          "hdl_cholesterol": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 500,
+            "description": "HDL胆固醇; absent means unknown, not normal/false."
+          },
+          "cholesterol_unit": {
+            "type": "string",
+            "enum": [
+              "mg/dL",
+              "mmol/L"
+            ],
+            "description": "胆固醇检验单位; absent means unknown, not normal/false."
+          },
+          "bp_treated": {
+            "type": "boolean",
+            "description": "是否正在接受降压治疗; absent means unknown, not normal/false."
+          },
+          "current_smoker": {
+            "type": "boolean",
+            "description": "目前是否吸烟; absent means unknown, not normal/false."
+          },
+          "diabetes": {
+            "type": "boolean",
+            "description": "是否已确诊糖尿病; absent means unknown, not normal/false."
+          },
+          "prior_cvd": {
+            "type": "boolean",
+            "description": "既往是否已患心血管疾病; absent means unknown, not normal/false."
+          },
+          "pregnancy": {
+            "type": "boolean",
+            "description": "是否妊娠; absent means unknown, not normal/false."
+          },
+          "breastfeeding": {
+            "type": "boolean",
+            "description": "是否哺乳; absent means unknown, not normal/false."
+          },
+          "renal_impairment": {
+            "type": "boolean",
+            "description": "是否已知肾功能异常; absent means unknown, not normal/false."
+          },
+          "hepatic_impairment": {
+            "type": "boolean",
+            "description": "是否已知肝功能异常; absent means unknown, not normal/false."
+          },
+          "hypercapnic_respiratory_failure": {
+            "type": "boolean",
+            "description": "医师是否确认高碳酸血症性呼吸衰竭; absent means unknown, not normal/false."
+          }
+        },
+        "description": "Optional explicit patient answers. Empty/absent differs from a reported denial. Never a diagnosis."
+      },
+      "PipelineStage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "waiting",
+              "skipped",
+              "failed"
+            ]
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "ClinicalPipeline": {
+        "type": "object",
+        "properties": {
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineStage"
+            }
+          },
+          "current_stage": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DatasetAsset": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "reported_rows": {
+            "type": "integer",
+            "nullable": true
+          },
+          "observed_rows": {
+            "type": "integer",
+            "nullable": true
+          },
+          "file_status": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer",
+            "nullable": true
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string"
+          }
+        }
+      },
+      "TrainingRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "unknown",
+              "running",
+              "completed",
+              "early_stopped",
+              "failed",
+              "interrupted"
+            ]
+          },
+          "current_step": {
+            "type": "integer"
+          },
+          "total_steps": {
+            "type": "integer",
+            "nullable": true
+          },
+          "progress": {
+            "type": "number",
+            "nullable": true,
+            "description": "Observed current_step / total_steps * 100 (0..100); early stopping does not force 100."
+          },
+          "epoch": {
+            "type": "number",
+            "nullable": true
+          },
+          "config": {
+            "type": "object"
+          },
+          "metrics": {
+            "type": "object"
+          },
+          "pipeline": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "TrainingBatch": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "sample_count": {
+            "type": "integer"
+          },
+          "train_count": {
+            "type": "integer"
+          },
+          "validation_count": {
+            "type": "integer"
+          },
+          "holdout_status": {
+            "type": "string"
+          },
+          "manifest": {
+            "type": "object"
           }
         }
       }
@@ -699,5 +2078,6 @@
       "$ref": "#/components/schemas/Event"
     },
     "notes": "Progress contains no unreviewed medical body; reconnect using GET runs."
-  }
+  },
+  "x-integration-notes": "See ../learning-operations.md. Reported experiment metrics are not a claim of a local retraining or a full-Milvus evaluation. Clinical intake preserves base Agent/Coordinator APIs."
 }

@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.agents.models import AgentRun
+from apps.common.throttling import ConsultationTokenBucket
 from apps.consultations.models import Consultation, ConsultationRun, Feedback
 from apps.consultations.serializers import (
     ConsultationDetailSerializer,
@@ -51,7 +52,7 @@ def serialize_run(run):
         "steps": [
             {
                 "agent": s.agent_name,
-                "status": s.status,
+                "status": "skipped" if s.output_payload.get("metadata", {}).get("status") == "skipped" else s.status,
                 "latency_ms": s.latency_ms,
                 "error_code": s.error or None,
             }
@@ -60,6 +61,9 @@ def serialize_run(run):
         "created_at": run.created_at,
         "finished_at": run.finished_at,
         "metadata": run.metadata,
+        "feedback": run.feedback.filter(user_id=run.consultation.user_id).values(
+            "id", "rating", "comment", "training_consent"
+        ).first(),
         **run.metadata,
     }
 
@@ -85,13 +89,15 @@ class ConsultationDetailView(generics.RetrieveAPIView):
 
 class MessageCreateView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ConsultationTokenBucket]
 
     def post(self, request, pk):
         consultation = owned_consultation(request.user, pk)
         payload = MessageCreateSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
         try:
-            run, _ = create_run(consultation, payload.validated_data["content"], uuid.uuid4())
+            run, _ = create_run(consultation, payload.validated_data["content"], uuid.uuid4(),
+                                intake=payload.validated_data.get("intake"))
         except ActiveRunError as exc:
             return Response({"detail": str(exc), "code": "RUN_ACTIVE"}, status=409)
         execute_run(run.pk)
@@ -104,6 +110,7 @@ class MessageCreateView(APIView):
 
 class RunListCreateView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ConsultationTokenBucket]
 
     def get(self, request, pk):
         consultation = owned_consultation(request.user, pk)
@@ -119,6 +126,7 @@ class RunListCreateView(APIView):
                 consultation,
                 data.validated_data["content"],
                 data.validated_data["client_request_id"],
+                intake=data.validated_data.get("intake"),
             )
         except (ActiveRunError, IdempotencyConflict) as exc:
             return Response({"detail": str(exc), "code": "RUN_CONFLICT"}, status=409)
@@ -163,13 +171,14 @@ class FeedbackView(APIView):
             raise NotFound()
         if run.status not in {"succeeded", "blocked"}:
             raise ValidationError({"detail": "只能对已经完成的回复提交反馈"})
-        feedback, _ = Feedback.objects.update_or_create(
-            user=request.user,
-            run=run,
-            defaults={
-                "consultation": consultation,
-                "rating": data.validated_data["rating"],
-                "comment": data.validated_data.get("comment", ""),
-            },
-        )
-        return Response({"id": feedback.pk, "rating": feedback.rating, "run_id": str(run.pk)})
+        values = {"consultation": consultation, "rating": data.validated_data["rating"], "comment": data.validated_data.get("comment", ""), "training_consent": data.validated_data["training_consent"]}
+        with transaction.atomic():
+            feedback, created = Feedback.objects.select_for_update().get_or_create(user=request.user, run=run, defaults=values)
+            if not created and any(getattr(feedback, key) != value for key, value in values.items()):
+                for key, value in values.items():
+                    setattr(feedback, key, value)
+                feedback.save(update_fields=[*values, "updated_at"])
+        from apps.learning.flywheel import refresh_feedback
+
+        refresh_feedback(feedback)
+        return Response({"id": feedback.pk, "rating": feedback.rating, "run_id": str(run.pk), "training_consent": feedback.training_consent})

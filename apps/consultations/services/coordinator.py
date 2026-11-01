@@ -84,12 +84,13 @@ def error_code(exc):
     return "EXECUTION_FAILED"
 
 
-def create_run(consultation, content, client_request_id):
+def create_run(consultation, content, client_request_id, intake=None):
+    intake = intake or {}
     existing = ConsultationRun.objects.filter(
         consultation=consultation, client_request_id=client_request_id
     ).first()
     if existing:
-        if existing.message.content != content:
+        if existing.message.content != content or existing.metadata.get("intake_submission", {}) != intake:
             raise IdempotencyConflict("同一请求标识不能对应不同内容")
         return existing, False
     try:
@@ -106,6 +107,7 @@ def create_run(consultation, content, client_request_id):
                 message=message,
                 client_request_id=client_request_id,
                 trace_id=uuid.uuid4().hex,
+                metadata={"intake_submission": intake} if intake else {},
             )
             return run, True
     except IntegrityError:
@@ -113,7 +115,7 @@ def create_run(consultation, content, client_request_id):
             consultation=consultation, client_request_id=client_request_id
         ).first()
         if existing:
-            if existing.message.content != content:
+            if existing.message.content != content or existing.metadata.get("intake_submission", {}) != intake:
                 raise IdempotencyConflict("同一请求标识不能对应不同内容") from None
             return existing, False
         raise ActiveRunError("当前会话仍有任务运行，请等待完成") from None
@@ -127,13 +129,20 @@ class WebContext(AgentContext):
         self._run = run
         self._record_lock = threading.RLock()
         self.facts["_emit"] = self.emit
+        from apps.consultations.services.intake import PipelineTracker, enabled
+
+        if enabled() and not run.metadata.get("test_agent"):
+            self.facts["_pipeline_tracker"] = PipelineTracker(run)
         return self
 
     def emit(self, agent, status, payload=None):
+        tracker = self.facts.get("_pipeline_tracker")
+        if tracker and status in {"started", "completed", "failed"}:
+            tracker.agent(agent, "skipped" if status == "completed" and payload and payload.get("execution_status") == "skipped" else status)
         # Arbitrary provider payloads must never cross the pre-review channel.
         allowed = {}
         if payload:
-            for key in ("latency_ms", "round", "error_code"):
+            for key in ("latency_ms", "round", "error_code", "execution_status"):
                 if key in payload:
                     allowed[key] = payload[key]
         publish(
@@ -148,6 +157,12 @@ class WebContext(AgentContext):
 
     def record(self, agent, payload):
         with self._record_lock:
+            if agent == "triage" and self.facts.get("_clinical_intake_ready"):
+                # Correct the legacy keyword-only triage with the explicit intake screen.
+                # The foundational Agent stays unchanged and remains replaceable.
+                self.facts["red_flags"] = self.facts.get("_screened_red_flags", [])
+                payload = {**payload, "metadata": {**payload.get("metadata", {}),
+                           "red_flags": self.facts["red_flags"], "need_followup": False}}
             super().record(agent, payload)
             failed = bool(payload.get("error"))
             metadata = payload.get("metadata", {})
@@ -190,6 +205,7 @@ class WebContext(AgentContext):
                 {
                     "latency_ms": payload.get("latency_ms", 0),
                     "error_code": failure_code,
+                    "execution_status": "skipped" if metadata.get("status") == "skipped" else "completed",
                 },
             )
 
@@ -271,10 +287,29 @@ def execute_run(run_id):
                 get_agent("safety").run(context, AgentMessage(content=run.message.content))
             result = SimpleNamespace(steps=context.steps, risk_level="low")
         else:
-            provider = import_string(settings.COORDINATOR_PROVIDER)()
-            result = provider.run(
-                run.message.content, context, enable_debate=settings.ENABLE_DEBATE
-            )
+            from apps.consultations.services import approved_cache
+            cache_key = approved_cache.key_for(run, context)
+            cached = approved_cache.load(cache_key)
+            context.facts["_approved_response_cache_key"] = cache_key
+            context.facts["_approved_response_cache"] = cached
+            if cached:
+                from types import SimpleNamespace
+                run.metadata["intake"] = {"status": "ready", "intent": "education", "answers": {}, "missing_fields": [], "questions": [], "summary": "复用同一用户、同一配置与知识版本的已审核健康知识"}
+                tracker = context.facts.get("_pipeline_tracker")
+                if tracker:
+                    for stage in tracker.value["stages"]:
+                        tracker.stage(stage["id"], "skipped", "复用已审核健康知识，无新模型调用")
+                context.record("safety", {"content": cached["text"], "metadata": {**cached["audit"], "approved_text": cached["text"], "review_status": "cached_approved_dual_review"}})
+                result = SimpleNamespace(steps=context.steps, risk_level="unknown")
+            elif context.facts.get("_pipeline_tracker"):
+                from apps.consultations.services.intake import route_turn
+                provider = import_string(settings.COORDINATOR_PROVIDER)()
+                result = route_turn(run, context, provider)
+            else:
+                provider = import_string(settings.COORDINATOR_PROVIDER)()
+                result = provider.run(
+                    run.message.content, context, enable_debate=settings.ENABLE_DEBATE
+                )
         steps = context.steps or result.steps
         text, audit = approved_output(steps)
         risk = (
@@ -283,8 +318,12 @@ def execute_run(run_id):
             else audit.get("risk_level", result.risk_level)
         )
         if risk not in Consultation.RiskLevel.values:
-            risk = Consultation.RiskLevel.LOW
+            risk = Consultation.RiskLevel.UNKNOWN
+        risk_step = next((s for s in reversed(steps) if s.get("agent") == "risk"), {})
+        if risk_step.get("metadata", {}).get("risk_level_is_provisional") and risk == "low":
+            risk = Consultation.RiskLevel.UNKNOWN
         explainer = next((s for s in reversed(steps) if s.get("agent") == "explainer"), {})
+        cached = context.facts.get("_approved_response_cache")
         # Structured explanation is only exposed when its full text passed the gate.
         details = explainer.get("metadata", {}) if audit["decision"] == "pass" else {}
         details = (
@@ -299,7 +338,13 @@ def execute_run(run_id):
         details["safety"] = {
             k: audit[k] for k in ("decision", "severity", "regulations", "reasons") if k in audit
         }
+        if cached:
+            details = {**cached["details"], "safety": details["safety"]}
+        if context.facts.get("_approved_response_cache_key"):
+            details["approved_response_cache"] = {"status": "hit" if cached else "miss", "scope": "same_user_education_only"}
         citations = explainer.get("citations", []) if audit["decision"] == "pass" else []
+        if cached and audit["decision"] == "pass":
+            citations = cached["citations"]
         from django.db.models import Sum
 
         from apps.billing.models import UsageRecord
@@ -307,6 +352,9 @@ def execute_run(run_id):
         totals = UsageRecord.objects.filter(trace_id=run.trace_id).aggregate(
             tokens_in=Sum("tokens_in"), tokens_out=Sum("tokens_out")
         )
+        tracker = context.facts.get("_pipeline_tracker")
+        if tracker:
+            tracker.finish()
         with transaction.atomic():
             reply = Message.objects.create(
                 consultation=run.consultation,
@@ -319,7 +367,7 @@ def execute_run(run_id):
             )
             run.reply = reply
             run.status = "blocked" if audit["decision"] == "block" else "succeeded"
-            run.metadata = details
+            run.metadata = {**run.metadata, **details}
             run.finished_at = timezone.now()
             run.save(update_fields=["reply", "status", "metadata", "finished_at"])
             Consultation.objects.filter(pk=run.consultation_id).update(
@@ -331,6 +379,9 @@ def execute_run(run_id):
                 else ("awaiting_review" if risk == "high" else "active"),
                 updated_at=timezone.now(),
             )
+        if not cached and context.facts.get("_approved_response_cache_key"):
+            from apps.consultations.services import approved_cache
+            approved_cache.store(context.facts["_approved_response_cache_key"], text, details, citations, audit)
         size = settings.ANSWER_CHUNK_SIZE
         for start in range(0, len(text), size):
             publish(
@@ -348,6 +399,12 @@ def execute_run(run_id):
             status=run.status,
         )
     except Exception as exc:
+        tracker = locals().get("context", AgentContext()).facts.get("_pipeline_tracker")
+        if tracker:
+            try:
+                tracker.finish(failed=True)
+            except Exception:
+                logger.warning("Pipeline failure telemetry unavailable trace=%s", run.trace_id)
         code = error_code(exc)
         # Do not store the exception body: providers may embed prompts or medical candidates.
         logger.warning("Run failed trace=%s kind=%s", run.trace_id, type(exc).__name__)

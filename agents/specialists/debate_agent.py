@@ -25,12 +25,18 @@ class DebateAgent(BaseAgent):
 
     def _debate(self, context: AgentContext, message: AgentMessage) -> AgentResult:
         payload = upstream_payload(context, message, exclude=("debate", "explainer", "safety"))
+        # An explicit empty list means this module supplied observations, not a
+        # diagnostic position. Keep older colleagues' content-only contracts.
         sources = [step for step in payload["upstream"]
-                   if step["available"] and step["agent"] != "retrieval"]
+                   if step["available"] and step["agent"] != "retrieval"
+                   and step.get("content", "").strip()
+                   and ("diagnostic_opinions" not in step["metadata"]
+                        or bool(step["metadata"]["diagnostic_opinions"]))]
         if len(sources) < 2:
             return AgentResult(agent=self.name, content="", metadata={
                 "status": "skipped", "reason": "insufficient_upstream_data", "rounds": [],
             })
+        payload["upstream"] = sources
         max_rounds = int(os.getenv("DEBATE_MAX_ROUNDS", "2"))
         if not 1 <= max_rounds <= 5:
             raise ValueError("INVALID_DEBATE_MAX_ROUNDS")

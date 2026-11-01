@@ -64,7 +64,7 @@ const regulations = computed<Citation[]>(() => {
           >{{ decisions[decision] || "结果未提供" }}</span
         >
       </div>
-      <span class="audit-severity">风险严重程度：{{ severity }}</span>
+      <span class="audit-severity">内容审核严重程度：{{ severity }}</span>
     </div>
     <ul v-if="reasons.length" class="audit-reasons">
       <li v-for="(reason, index) in reasons" :key="index">{{ reason }}</li>
