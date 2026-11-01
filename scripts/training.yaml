@@ -30,18 +30,33 @@ lora:
 train:
   # LoRA adapter 输出目录
   output_dir: models/finetuned/bge-m3-lora
-  num_epochs: 1
+  num_epochs: 2
   per_device_batch_size: 8
   gradient_accumulation_steps: 2
   max_seq_length: 512
   # LoRA 学习率高于全量微调（1e-4 ~ 5e-4）
   learning_rate: 2.0e-4
   warmup_ratio: 0.1
+  # 学习率调度：cosine 余弦退火（配合 warmup 构成动态学习率曲线）
+  lr_scheduler_type: cosine
+  # 权重衰减：AdamW 的 L2 正则，防小数据 + 多 epoch 过拟合
+  weight_decay: 0.01
   bf16: false
   fp16: true
-  eval_steps: 500
-  save_steps: 1000
+  # ---- 早停（early stopping）----
+  # 启用后每 eval_steps 步在验证集上算一次 eval_loss，连续 patience 次无改善则提前停止
+  early_stopping: true
+  early_stopping_patience: 3
+  early_stopping_threshold: 1.0e-4
+  # 验证频率与保存频率保持一致（load_best_model_at_end 要求 save/eval strategy 一致）
+  eval_strategy: steps
+  eval_steps: 100
+  save_steps: 100
   save_total_limit: 2
+  # 训练结束时自动加载验证集上最优的 checkpoint（配合早停 = 最优模型自动落盘）
+  load_best_model_at_end: true
+  metric_for_best_model: eval_loss
+  greater_is_better: false
   logging_steps: 50
   seed: 42
 

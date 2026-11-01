@@ -122,8 +122,10 @@ def main() -> None:
     print("[数据] 读取训练集...")
     train_samples = load_triplets(train_file, max_train)
     val_samples = load_triplets(val_file, max_val)
-    print(f"[数据] 训练 {len(train_samples)} 条, 验证 {len(val_samples)} 条（验证集仅供评测脚本使用）")
+    print(f"[数据] 训练 {len(train_samples)} 条, 验证 {len(val_samples)} 条")
     train_dataset = build_pairs_dataset(train_samples)
+    # 验证集用于训练中的早停（监控 eval_loss）
+    eval_dataset = build_pairs_dataset(val_samples) if val_samples else None
 
     # 4. 对比学习 loss
     loss = MultipleNegativesRankingLoss(model)
@@ -136,28 +138,51 @@ def main() -> None:
         gradient_accumulation_steps=int(train_cfg.get("gradient_accumulation_steps", 1)),
         learning_rate=float(train_cfg.get("learning_rate", 2e-4)),
         warmup_ratio=float(train_cfg.get("warmup_ratio", 0.1)),
+        lr_scheduler_type=train_cfg.get("lr_scheduler_type", "linear"),
+        weight_decay=float(train_cfg.get("weight_decay", 0.0)),
         bf16=bool(train_cfg.get("bf16", False)),
         fp16=bool(train_cfg.get("fp16", False)),
-        eval_strategy="no",
+        eval_strategy=train_cfg.get("eval_strategy", "no"),
+        eval_steps=int(train_cfg.get("eval_steps", 500)),
         save_strategy="steps",
         save_steps=int(train_cfg.get("save_steps", 1000)),
         save_total_limit=int(train_cfg.get("save_total_limit", 2)),
+        load_best_model_at_end=bool(train_cfg.get("load_best_model_at_end", False)),
+        metric_for_best_model=train_cfg.get("metric_for_best_model"),
+        greater_is_better=train_cfg.get("greater_is_better"),
         batch_sampler=BatchSamplers.NO_DUPLICATES,
         logging_steps=int(train_cfg.get("logging_steps", 50)),
         seed=int(train_cfg.get("seed", 42)),
         report_to=[],
     )
 
-    # 6. 训练
+    # 6. 早停回调（配置 early_stopping: true 时启用，基于验证集 eval_loss）
+    callbacks = []
+    if train_cfg.get("early_stopping"):
+        from transformers import EarlyStoppingCallback
+
+        patience = int(train_cfg.get("early_stopping_patience", 3))
+        threshold = float(train_cfg.get("early_stopping_threshold", 0.0))
+        callbacks.append(
+            EarlyStoppingCallback(
+                early_stopping_patience=patience,
+                early_stopping_threshold=threshold,
+            )
+        )
+        print(f"[早停] patience={patience} threshold={threshold} metric={train_cfg.get('metric_for_best_model', 'eval_loss')}")
+
+    # 7. 训练（load_best_model_at_end=True 时，训练结束自动加载验证集最优权重）
     trainer = SentenceTransformerTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         loss=loss,
+        callbacks=callbacks,
     )
     trainer.train()
 
-    # 7. 保存 adapter（PEFT 会保存 adapter_config.json + adapter_model.safetensors）
+    # 8. 保存 adapter（PEFT 会保存 adapter_config.json + adapter_model.safetensors）
     final_dir = output_dir / "final"
     model.save_pretrained(str(final_dir))
     print(f"[完成] LoRA adapter 已保存到 {final_dir}")
