@@ -16,6 +16,8 @@ Django 5.2 / DRF / Channels + Vue 3 / TypeScript / Pinia / Element Plus / EChart
 
 本轮 v2 入口：[需求覆盖与边界](docs/requirements-v2.md)、[训练与飞轮操作](docs/learning-operations.md)、[RAG 与临床数据接入](docs/rag-clinical-operations.md)、[上台演示步骤](docs/demo-v2.md)、[本轮验收](docs/acceptance-v2.md)、[训练提交 CI 诊断](docs/ci-review-training-v2.md)。本轮已获用户审阅后的 main 提交授权，变更范围与未完成联调项见 [v2 发布备注](docs/releases/2026-11-01-v2.md)。
 
+后续按截图调整的品牌、问诊卡片高度、装饰与普通账号权限验证见[界面微调验收](docs/ui-polish-2026-11-01.md)，提交范围见[界面发布备注](docs/releases/2026-11-01-ui-polish.md)。
+
 2026-11-01 页面改版与复查见 [改版说明](docs/ui-refresh-2026-11-01.md)，远程两条检查的结论见 [CI 诊断](docs/ci-review-2026-11-01.md)，背景提示词与素材记录见 [素材来源](docs/assets/medical-background.md)。用户审阅后已授权提交，提交范围、独立 CI 修复与复验记录见 [交付备注](docs/releases/2026-11-01.md)。
 
 ## 本机运行

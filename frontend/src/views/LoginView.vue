@@ -5,6 +5,7 @@ import { useSessionStore } from "@/stores/session";
 import { errorText } from "@/api/client";
 import AppIcon from "@/components/AppIcon.vue";
 import MedicalScene from "@/components/MedicalScene.vue";
+import PlatformBrand from "@/components/PlatformBrand.vue";
 import { workspaceBackgroundStyle } from "@/config/workspace";
 const backgroundStyle = workspaceBackgroundStyle();
 const username = ref("");
@@ -42,7 +43,7 @@ async function submit() {
     <div class="workspace-backdrop" aria-hidden="true"></div>
     <div class="login-card">
       <section class="login-intro">
-        <RouterLink to="/" class="brand"><span class="brand-symbol"><AppIcon name="plus" :size="25" /></span><span class="brand-wordmark">医协<small>医疗智能体协作平台</small></span></RouterLink>
+        <PlatformBrand />
         <div class="login-statement"><h1>让健康问题，<br />多一份清晰的答案。</h1><p>医学证据、专职智能体与安全审核相互协作，<br />把复杂信息，转化为你能理解的健康参考。</p></div>
         <MedicalScene scene="consultation" />
       </section>

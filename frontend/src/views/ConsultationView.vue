@@ -20,6 +20,7 @@ import {
 } from "@/api/types";
 import AppIcon from "@/components/AppIcon.vue";
 import ClinicalInputs from "@/components/ClinicalInputs.vue";
+import ConsultationAccent from "@/components/ConsultationAccent.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AgentTimeline from "@/components/AgentTimeline.vue";
 import EvidenceList from "@/components/EvidenceList.vue";
@@ -389,6 +390,7 @@ onBeforeUnmount(() => {
 </script>
 <template>
   <div class="consultation-workspace">
+    <div class="consultation-main">
     <aside class="history-panel card">
       <div class="section-title">
         <h2>我的问诊</h2>
@@ -432,6 +434,7 @@ onBeforeUnmount(() => {
           >加载更多会话</el-button
         >
       </div>
+      <ConsultationAccent variant="history" />
     </aside>
     <section class="conversation-panel card" v-loading="loading">
       <div class="conversation-toolbar">
@@ -467,6 +470,7 @@ onBeforeUnmount(() => {
         aria-live="polite"
       >
         <div v-if="!messages.length && !loading" class="chat-welcome">
+          <ConsultationAccent />
           <span class="chat-welcome-symbol"
             ><AppIcon name="chat" :size="35"
           /></span>
@@ -619,6 +623,7 @@ onBeforeUnmount(() => {
         </div>
       </form>
     </section>
+    </div>
     <aside class="trace-panel">
       <section class="card">
         <div class="section-title">

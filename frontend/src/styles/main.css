@@ -184,8 +184,10 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
 .flow-stage-links a:hover { color: var(--primary); }
 .parallel-symbol { font-size:11px; color: #aab794; }
 /* Conversation and its evidence remain operationally unchanged. */
-.consultation-workspace { display: grid; grid-template-columns: 215px minmax(400px,1fr) 270px; gap: 19px; align-items: start; }
-.history-panel { padding: 19px 13px; position: sticky; top: 110px; }
+.consultation-workspace { display: grid; grid-template-columns: minmax(0,1fr) 270px; gap: 19px; align-items: start; }
+.consultation-main { display: grid; grid-template-columns:215px minmax(400px,1fr); gap:19px; align-items:stretch; min-width:0; }
+.history-panel { padding: 19px 13px; position: relative; margin:0; min-width:0; isolation:isolate; overflow:hidden; }
+.history-panel>*:not(.consultation-accent) { position:relative; z-index:1; }
 .history-panel .section-title { padding-left: 4px; margin-bottom: 14px; }
 .history-panel h2 { font-size: 13px; }
 .history-panel .el-button { font-size: 11px; }
@@ -203,7 +205,8 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
 .conversation-toolbar .muted { font-size:11px; }
 .conversation-panel>.el-alert { margin: 12px; width: calc(100% - 24px); }
 .conversation-messages { flex: 1; overflow-y: auto; min-height: 390px; max-height: 650px; padding: 23px; scrollbar-width: thin; }
-.chat-welcome { padding: 39px 3px; text-align: center; }
+.chat-welcome { position:relative; isolation:isolate; overflow:hidden; padding: 39px 3px; text-align: center; }
+.chat-welcome>*:not(.consultation-accent) { position:relative; z-index:1; }
 .chat-welcome-symbol { display: inline-flex; align-items: center; justify-content: center; width: 66px; height: 66px; margin-bottom: 23px; border-radius: 20px; background: #eff4e7; color: #a2b88e; }
 .chat-welcome h3 { font-size: 19px; font-weight: 500; margin-bottom: 15px; color: #7a956c; }
 .chat-welcome p { color: #8f9f80; font-size: 11px; line-height: 2; }
@@ -337,7 +340,8 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
 @media(min-width:1650px) {
   .workspace-header-inner,.app-main { max-width:1520px; }
   .home-hero h1 { font-size:41px; } .home-hero { min-height:345px; }
-  .consultation-workspace { grid-template-columns:230px minmax(430px,1fr) 285px; }
+  .consultation-workspace { grid-template-columns:minmax(0,1fr) 285px; }
+  .consultation-main { grid-template-columns:230px minmax(430px,1fr); }
 }
 @media(max-width:1230px) {
   .workspace-header-inner { padding:0 26px; grid-template-columns:minmax(145px,1fr) auto minmax(145px,1fr); gap:10px; }
@@ -349,7 +353,8 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
   .home-hero>.medical-scene-art { width:46%; right:-18px; bottom:24px; }
   .home-service-status { gap:8px; } .home-service-status>div { flex-direction:column; align-items:flex-start; }
   .stat-grid { gap:14px; } .stat-card { padding:20px 17px; gap:11px; } .stat-card strong { font-size:24px; }
-  .consultation-workspace { grid-template-columns:185px minmax(340px,1fr); }
+  .consultation-workspace { grid-template-columns:minmax(0,1fr); }
+  .consultation-main { grid-template-columns:185px minmax(340px,1fr); }
   .trace-panel { grid-column:1/-1; display:grid; grid-template-columns:1fr 1fr; gap:18px; }
   .trace-panel>.card { margin-bottom:0; } .trace-safety { grid-column:1/-1; }
   .collaboration-flow { gap:12px; } .collaboration-flow>li { padding:17px 11px 14px; } .collaboration-flow>li::after { right:-11px; }
@@ -370,7 +375,7 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
   .collaboration-flow { grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; } .collaboration-flow>li:nth-child(3n)::after { display:none; }
   .page-scene-copy { max-width:68%; } .page-scene h1 { font-size:23px; }
   .page-scene>.medical-scene-art { width:255px; right:3px; opacity:.8; }
-  .dashboard-grid { grid-template-columns:1fr; } .history-panel { top:135px; }
+  .dashboard-grid { grid-template-columns:1fr; }
   .agents-workspace { grid-template-columns:205px minmax(0,1fr); }
   .token-breakdown { grid-template-columns:repeat(2,1fr); }
 }
@@ -387,7 +392,8 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
   .home-update-row { margin-top:0; padding-top:19px; }
   .page-scene { padding:23px; min-height:155px; } .page-scene h1 { font-size:21px; }
   .page-scene-copy>p { max-width:350px; font-size: 12px; } .page-scene>.medical-scene-art { width:215px; right:-13px; opacity:.5; }
-  .consultation-workspace { grid-template-columns:155px minmax(0,1fr); gap:14px; }
+  .consultation-workspace { gap:14px; }
+  .consultation-main { grid-template-columns:155px minmax(0,1fr); gap:14px; }
   .conversation-toolbar h2 { max-width:230px; } .conversation-messages { padding:20px 16px; }
   .history-panel { padding:16px 10px; } .composer-bottom>span { font-size:11px; }
   .chat-hints { gap:6px; } .chat-hints span { padding:6px; font-size:11px; }
@@ -436,6 +442,7 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
   .page-scene>.medical-scene-art { width:165px; opacity:.25; right:-12px; bottom:-2px; }
   .scene-tags { margin-top:13px; gap:12px; } .scene-tags span { font-size:11px; gap:5px; }
   .consultation-workspace { display:flex; flex-direction:column; gap:15px; }
+  .consultation-main { display:flex; flex-direction:column; gap:15px; width:100%; }
   .history-panel { position:static; width:100%; padding:14px; margin:0; } .history-panel .history-search { display:none; }
   .history-panel .full-width { width:auto; height:28px; font-size:11px; }
   .history-panel .section-title { display:inline-flex; vertical-align:middle; margin:0 15px 0 0; gap:10px; }
