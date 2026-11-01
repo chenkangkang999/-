@@ -1,0 +1,53 @@
+# ============================================================
+# BGE-M3 LoRA 微调 统一配置
+# 所有路径 / 超参 / 镜像源都从这里读取，脚本本身不硬编码
+# 改这里即可，无需改动任何 .py 脚本
+# ============================================================
+
+model:
+  # 模型在镜像仓库上的 ID
+  model_id: BAAI/bge-m3
+  # 下载镜像：modelscope(阿里) / hf-mirror / huggingface
+  mirror: modelscope
+  # 基座模型本地目录（相对项目根目录）
+  local_dir: models/pretrained/BAAI/bge-m3
+
+data:
+  # cMedQA2 三元组训练对（已对接进 data/processed/）
+  train_file: data/processed/cmedqa2/train_triplets.jsonl
+  val_file: data/processed/cmedqa2/val_triplets.jsonl
+  # 样本上限（0 = 全量）。答辩实验建议先 20000 跑通，再按需调大
+  max_train_samples: 20000
+  max_val_samples: 1000
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  # "all-linear" = 自动检测所有线性层；或显式列出层名（BGE-M3 / XLM-RoBERTa 的层名是 query/key/value/dense）
+  target_modules: [query, key, value, dense]
+
+train:
+  # LoRA adapter 输出目录
+  output_dir: models/finetuned/bge-m3-lora
+  num_epochs: 1
+  per_device_batch_size: 8
+  gradient_accumulation_steps: 2
+  max_seq_length: 512
+  # LoRA 学习率高于全量微调（1e-4 ~ 5e-4）
+  learning_rate: 2.0e-4
+  warmup_ratio: 0.1
+  bf16: false
+  fp16: true
+  eval_steps: 500
+  save_steps: 1000
+  save_total_limit: 2
+  logging_steps: 50
+  seed: 42
+
+eval:
+  # 检索评测：每个 query 用 1 positive + N 个负例做候选池
+  num_negatives: 19
+  top_ks: [1, 5, 10]
+  # 微调前后对比表输出
+  output_csv: models/finetuned/eval_comparison.csv
