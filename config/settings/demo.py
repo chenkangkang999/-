@@ -44,3 +44,13 @@ MIDDLEWARE = list(MIDDLEWARE) + ["config.settings.demo.SpaFallbackMiddleware"]
 
 # 4) 创空间经平台代理访问，放宽 Host 校验
 ALLOWED_HOSTS = ["*"]
+
+# 5) 允许被 iframe 嵌入（魔搭创空间用 iframe 展示应用页面）
+#    base.py 的 XFrameOptionsMiddleware 会发 X-Frame-Options: DENY，
+#    浏览器据此拦截 iframe 内容，页面显示"禁止访问"图标。
+#    注意：本 Django 版本的该中间件不接受 X_FRAME_OPTIONS=None（会 .upper() 报错），
+#    因此直接把它从 MIDDLEWARE 列表移除。
+MIDDLEWARE = [
+    m for m in MIDDLEWARE
+    if m != "django.middleware.clickjacking.XFrameOptionsMiddleware"
+]
