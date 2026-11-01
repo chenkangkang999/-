@@ -24,11 +24,11 @@ status_labels:
 drug_sources:
   - id: nmpa-domestic
     path: drugs/nmpa_domestic.csv
-    fields: {name: name, aliases: aliases, english_name: english_name}
+    fields: {name: 产品名称}
     source: {title: NMPA 国产药品注册资料, url: 'https://www.nmpa.gov.cn/datasearch/home-index.html', authority: drug_registry}
   - id: nmpa-import
     path: drugs/nmpa_import.csv
-    fields: {name: name, aliases: aliases, english_name: english_name}
+    fields: {name: 产品名称}
     source: {title: NMPA 进口药品注册资料, url: 'https://www.nmpa.gov.cn/datasearch/home-index.html', authority: drug_registry}
 ddi:
   path: drugs/ddi_clean.csv

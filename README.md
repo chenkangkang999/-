@@ -6,6 +6,8 @@ tags:
 - llm
 - rag
 license: Apache License 2.0
+sdk: docker
+app_port: 7860
 ---
 
 # 医疗问诊多智能体协作系统
