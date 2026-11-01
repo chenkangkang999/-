@@ -146,7 +146,7 @@ def main() -> None:
         eval_steps=int(train_cfg.get("eval_steps", 500)),
         save_strategy="steps",
         save_steps=int(train_cfg.get("save_steps", 1000)),
-        save_total_limit=int(train_cfg.get("save_total_limit", 2)),
+        save_total_limit=train_cfg.get("save_total_limit"),
         load_best_model_at_end=bool(train_cfg.get("load_best_model_at_end", False)),
         metric_for_best_model=train_cfg.get("metric_for_best_model"),
         greater_is_better=train_cfg.get("greater_is_better"),

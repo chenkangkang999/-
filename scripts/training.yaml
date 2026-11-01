@@ -52,7 +52,8 @@ train:
   eval_strategy: steps
   eval_steps: 100
   save_steps: 100
-  save_total_limit: 2
+  # 不自动删除中间 checkpoint（save_total_limit 的删除会被沙箱安全策略拦截导致训练中断；训练结束后可手动清理 checkpoint-*）
+  save_total_limit: null
   # 训练结束时自动加载验证集上最优的 checkpoint（配合早停 = 最优模型自动落盘）
   load_best_model_at_end: true
   metric_for_best_model: eval_loss
