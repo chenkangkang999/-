@@ -1,3 +1,13 @@
+---
+domain: nlp
+tags:
+- medical
+- multi-agent
+- llm
+- rag
+license: Apache License 2.0
+---
+
 # 医疗问诊多智能体协作系统
 
 Django 5.2 / DRF / Channels + Vue 3 / TypeScript / Pinia / Element Plus / ECharts。
@@ -77,3 +87,14 @@ RAG服务为可选profile：docker compose --env-file .env --profile rag up --bu
 启用前填写MinIO账号密码；数据与模型目录只读挂载，索引/训练交接目录由 backend 与 worker 共享 runtime 卷。向量模式需显式安装可选依赖并建索引，详见 RAG 接入文档。
 默认Compose用于本机集成；公网部署必须使用生产settings、HTTPS、明确主机及安全凭据。
 .dockerignore排除.env、数据库、患者数据、模型和虚拟环境，镜像不打包本机密钥。
+
+## 创空间部署（单容器 CPU 演示版）
+
+根目录已提供 `Dockerfile` + `ms_deploy.json` + `config/settings/demo.py`，用于魔搭创空间单容器 CPU 演示：
+
+- 只安装 `requirements/prod.txt`（不含 torch / sentence-transformers / pymilvus 等重依赖），镜像约 300~400MB；
+- 数据库用 SQLite、缓存/限流用内存、问诊执行走同步、WebSocket 通道层内存化，无需 Postgres/Redis/Celery/Milvus；
+- 前端 Vue3 构建产物（`frontend/dist`）由 whitenoise 托管，SPA history 路由回退到 index.html；
+- 服务监听 `0.0.0.0:7860`（创空间固定端口）。
+
+部署方式：魔搭创空间 → 创建创空间 →「快速部署并创建」上传项目文件夹，或「通过 Git 上传」推送本仓库。
