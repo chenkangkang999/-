@@ -16,6 +16,7 @@ import re
 from django.http import HttpResponse
 
 from .base import *  # noqa: F401,F403
+from .base import BASE_DIR, MIDDLEWARE
 
 # 1) 无 Redis：通道层内存化
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}

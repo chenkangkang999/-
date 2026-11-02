@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """绘制线性基线 vs 余弦调优的训练收敛曲线（loss / eval_loss / lr），输出 PNG。
 
 - 数据源：两轮训练的 trainer_state.json 的 log_history 字段
@@ -10,8 +9,9 @@ import json
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 
 # 中文字体（Windows）
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "Arial Unicode MS"]
@@ -76,17 +76,17 @@ def main() -> None:
         f"余弦最优 eval_loss={cos_ev_y[best_i]:.4f}\n(step {cos_ev_x[best_i]})",
         xy=(cos_ev_x[best_i], cos_ev_y[best_i]),
         xytext=(cos_ev_x[best_i] * 0.55, cos_ev_y[best_i] + 0.018),
-        arrowprops=dict(arrowstyle="->", color=C_COSINE, lw=1.2),
+        arrowprops={"arrowstyle": "->", "color": C_COSINE, "lw": 1.2},
         fontsize=9, color=C_COSINE,
-        bbox=dict(boxstyle="round,pad=0.35", fc="white", ec=C_COSINE, alpha=0.92),
+        bbox={"boxstyle": "round,pad=0.35", "fc": "white", "ec": C_COSINE, "alpha": 0.92},
     )
     ax.annotate(
         f"早停终点 step {cos_ev_x[-1]}",
         xy=(cos_ev_x[-1], cos_ev_y[-1]),
         xytext=(cos_ev_x[-1] * 0.82, cos_ev_y[-1] + 0.018),
-        arrowprops=dict(arrowstyle="->", color=C_COSINE, lw=1.2),
+        arrowprops={"arrowstyle": "->", "color": C_COSINE, "lw": 1.2},
         fontsize=9, color=C_COSINE,
-        bbox=dict(boxstyle="round,pad=0.35", fc="white", ec=C_COSINE, alpha=0.92),
+        bbox={"boxstyle": "round,pad=0.35", "fc": "white", "ec": C_COSINE, "alpha": 0.92},
     )
     _style_ax(ax, "训练步数 (step)", "验证损失 (eval_loss)", "验证集损失曲线对比（余弦过早早停）")
     fig.tight_layout()

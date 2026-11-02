@@ -29,7 +29,7 @@ def clinical_files(tmp_path, monkeypatch):
     drug = root / cfg["drug_sources"][0]["path"]
     with drug.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["name", "aliases", "english_name"])
+        writer.writerow(["产品名称", "aliases", "english_name"])
         writer.writerows([["测试药甲", "甲片", "DrugA"], ["测试药乙", "乙片", "DrugB"], ["测试药丙", "丙片", "DrugC"]])
     ddi = root / cfg["ddi"]["path"]
     with ddi.open("w", encoding="utf-8", newline="") as handle:
